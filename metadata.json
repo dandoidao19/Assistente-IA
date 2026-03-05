@@ -1,0 +1,5 @@
+{
+  "name": "Assistente Pessoal",
+  "description": "Um assistente pessoal conversacional com agenda, tarefas e memória.",
+  "requestFramePermissions": ["microphone"]
+}

@@ -1,0 +1,262 @@
+import { useAppStore } from '../store';
+import { isToday, isTomorrow, isValid } from 'date-fns';
+import { Calendar, CheckSquare, Brain, ArrowRight, Plus, Bell, Share2, Check, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { safeFormat, safeFormatDate } from '../utils/date';
+
+export function Home() {
+  const appointments = useAppStore((state) => state.appointments || []);
+  const tasks = useAppStore((state) => state.tasks || []);
+  const memories = useAppStore((state) => state.memories || []);
+  const suggestions = useAppStore((state) => state.suggestions || []);
+  const acceptSuggestion = useAppStore((state) => state.acceptSuggestion);
+  const rejectSuggestion = useAppStore((state) => state.rejectSuggestion);
+
+  const upcomingAppointments = [...(appointments || [])]
+    .filter((a) => a && !a.isCompleted)
+    .sort((a, b) => {
+      if (!a?.date || !a?.time) return 1;
+      if (!b?.date || !b?.time) return -1;
+      try {
+        const timeA = new Date(`${a.date}T${a.time}`).getTime();
+        const timeB = new Date(`${b.date}T${b.time}`).getTime();
+        if (isNaN(timeA)) return 1;
+        if (isNaN(timeB)) return -1;
+        return timeA - timeB;
+      } catch {
+        return 0;
+      }
+    })
+    .slice(0, 4);
+
+  const pendingTasks = (tasks || []).filter((t) => t && !t.isCompleted).slice(0, 4);
+  const recentMemories = [...(memories || [])]
+    .sort((a, b) => {
+      if (!a?.createdAt) return 1;
+      if (!b?.createdAt) return -1;
+      try {
+        const timeA = new Date(a.createdAt).getTime();
+        const timeB = new Date(b.createdAt).getTime();
+        if (isNaN(timeA)) return 1;
+        if (isNaN(timeB)) return -1;
+        return timeB - timeA;
+      } catch {
+        return 0;
+      }
+    })
+    .slice(0, 4);
+
+  const formatApptDate = (dateStr: string) => {
+    if (!dateStr) return 'N/A';
+    try {
+      if (dateStr.length === 10) { // YYYY-MM-DD
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const date = new Date(y, m - 1, d);
+        if (isValid(date)) {
+          if (isToday(date)) return 'Hoje';
+          if (isTomorrow(date)) return 'Amanhã';
+        }
+      }
+      return safeFormat(dateStr, "dd/MM");
+    } catch {
+      return dateStr;
+    }
+  };
+
+  return (
+    <div className="space-y-8 max-w-6xl mx-auto pb-20">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
+            Bom dia!
+          </h1>
+          <p className="text-zinc-500 dark:text-zinc-400 mt-1">
+            Aqui está o que temos para hoje, {safeFormatDate(new Date(), "dd 'de' MMMM")}.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-lg shadow-indigo-500/20">
+            <Plus size={18} />
+            Novo Item
+          </button>
+        </div>
+      </header>
+
+      {/* Suggestions and Sharing Section */}
+      {suggestions.length > 0 && (
+        <section className="animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className="flex items-center gap-2 mb-4 px-1">
+            <Bell size={18} className="text-indigo-500" />
+            <h2 className="text-lg font-bold text-zinc-800 dark:text-zinc-200">Sugestões e Compartilhamento</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {suggestions.map((suggestion) => (
+              <div key={suggestion.id} className="bg-white dark:bg-zinc-900 border border-indigo-100 dark:border-indigo-900/30 rounded-2xl p-4 flex items-start justify-between gap-4 shadow-sm">
+                <div className="flex gap-3">
+                  <div className="p-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl h-fit">
+                    {suggestion.type === 'appointment' ? <Calendar size={20} /> : <CheckSquare size={20} />}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm">{suggestion.title}</h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{suggestion.description}</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => rejectSuggestion(suggestion.id)}
+                    className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 rounded-lg transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
+                  <button 
+                    onClick={() => acceptSuggestion(suggestion.id)}
+                    className="p-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors shadow-md shadow-indigo-500/20"
+                  >
+                    <Check size={18} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Agenda Section */}
+        <section className="flex flex-col h-full">
+          <div className="flex items-center justify-between mb-4 px-1">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg">
+                <Calendar size={20} />
+              </div>
+              <h2 className="text-lg font-bold text-zinc-800 dark:text-zinc-200">Agenda</h2>
+            </div>
+            <Link to="/agenda" className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
+              Ver tudo <ArrowRight size={12} />
+            </Link>
+          </div>
+          
+          <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden flex-1">
+            {upcomingAppointments.length === 0 ? (
+              <div className="p-8 text-center">
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 italic">Nenhum compromisso próximo.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                {upcomingAppointments.map((appt) => (
+                  <div key={appt.id} className="p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                          {appt.title}
+                        </h3>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 flex items-center gap-1">
+                          <span className="font-medium text-indigo-500">{formatApptDate(appt.date)}</span>
+                          <span className="text-zinc-300 dark:text-zinc-700">•</span>
+                          <span>{appt.time}</span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Tasks Section */}
+        <section className="flex flex-col h-full">
+          <div className="flex items-center justify-between mb-4 px-1">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg">
+                <CheckSquare size={20} />
+              </div>
+              <h2 className="text-lg font-bold text-zinc-800 dark:text-zinc-200">Tarefas</h2>
+            </div>
+            <Link to="/tasks" className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1">
+              Ver tudo <ArrowRight size={12} />
+            </Link>
+          </div>
+          
+          <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden flex-1">
+            {pendingTasks.length === 0 ? (
+              <div className="p-8 text-center">
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 italic">Nenhuma tarefa pendente.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                {pendingTasks.map((task) => (
+                  <div key={task.id} className="p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group flex items-center gap-3">
+                    <div className="w-5 h-5 rounded-md border-2 border-zinc-200 dark:border-zinc-700 group-hover:border-emerald-500 transition-colors" />
+                    <div>
+                      <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                        {task.title}
+                      </h3>
+                      {task.note && <p className="text-[10px] text-zinc-500 dark:text-zinc-400 line-clamp-1 mt-0.5">{task.note}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Memory Section */}
+        <section className="flex flex-col h-full md:col-span-2 lg:col-span-1">
+          <div className="flex items-center justify-between mb-4 px-1">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-lg">
+                <Brain size={20} />
+              </div>
+              <h2 className="text-lg font-bold text-zinc-800 dark:text-zinc-200">Memória</h2>
+            </div>
+            <Link to="/memory" className="text-xs font-semibold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1">
+              Ver tudo <ArrowRight size={12} />
+            </Link>
+          </div>
+          
+          <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden flex-1">
+            {recentMemories.length === 0 ? (
+              <div className="p-8 text-center">
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 italic">Nenhuma memória salva.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 divide-y divide-zinc-100 dark:divide-zinc-800">
+                {recentMemories.map((memory) => (
+                  <div key={memory.id} className="p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group">
+                    <div className="flex justify-between items-start gap-2">
+                      <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors line-clamp-1">
+                        {memory.title}
+                      </h3>
+                      <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-2 py-1 rounded-lg">
+                        {memory.folder}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+
+      {/* Quick Tips / Assistant Promo */}
+      <div 
+        className="bg-indigo-600 rounded-[2rem] p-8 text-white relative overflow-hidden shadow-2xl shadow-indigo-500/20"
+      >
+        <div className="relative z-10 max-w-lg">
+          <h2 className="text-2xl font-bold mb-2">Dica do Assistente</h2>
+          <p className="text-indigo-100 text-sm md:text-base leading-relaxed">
+            Você sabia que pode dizer "Vincular tarefa X à agenda para amanhã às 10h"? 
+            Eu cuido de tudo para você, mantendo suas tarefas e compromissos em sincronia.
+          </p>
+          <button className="mt-6 px-6 py-2.5 bg-white text-indigo-600 rounded-xl font-bold text-sm hover:bg-indigo-50 transition-colors">
+            Experimentar agora
+          </button>
+        </div>
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-400/20 rounded-full translate-y-1/2 -translate-x-1/2 blur-2xl" />
+      </div>
+    </div>
+  );
+}
