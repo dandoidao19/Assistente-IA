@@ -325,7 +325,7 @@ export function Agenda() {
                         </div>
                         <div className="flex items-center gap-1.5">
                           <Bell size={16} className="text-indigo-500" />
-                          <span>Lembrete: {formatReminderTime(selectedAppt.reminderTime)} antes</span>
+                          <span>Lembrete: {formatReminderTime(selectedAppt.reminderTime || 0)} antes</span>
                         </div>
                       </div>
                     </div>

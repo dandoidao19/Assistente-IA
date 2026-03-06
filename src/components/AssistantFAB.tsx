@@ -228,11 +228,11 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
                     const tasksArgs = (args as any).tasks || [];
                     tasksArgs.forEach((t: any) => {
                       if (typeof t === 'string') {
-                        addTask({ title: cleanTitle(t) });
+                        addTask({ title: cleanTitle(t), type: 'standard' });
                       } else if (t && t.title) {
-                        addTask({ ...t, title: cleanTitle(t.title) });
+                        addTask({ ...t, title: cleanTitle(t.title), type: t.type || 'standard' });
                       } else if (t && t.task) {
-                        addTask({ title: cleanTitle(t.task), note: t.note });
+                        addTask({ title: cleanTitle(t.task), note: t.note, type: 'standard' });
                       }
                     });
                     result = { success: true, message: "Tarefas adicionadas." };

@@ -1,6 +1,8 @@
 import { ReactNode, useState, useEffect, useRef } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
-import { Home, Calendar, CheckSquare, Brain, Settings, Menu, X, Mic2 } from 'lucide-react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Home, Calendar, CheckSquare, Brain, Settings, Menu, X, Mic2, LogOut } from 'lucide-react';
+import { useAppStore } from '../store';
+import { supabase } from '../lib/supabase';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -19,7 +21,16 @@ const navItems = [
 export function Layout({ children }: { children: ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const mainRef = useRef<HTMLElement>(null);
+  const user = useAppStore((state) => state.user);
+  const signOut = useAppStore((state) => state.signOut);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    signOut();
+    navigate('/login');
+  };
 
   useEffect(() => {
     if (mainRef.current) {
@@ -91,12 +102,24 @@ export function Layout({ children }: { children: ReactNode }) {
           <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">
             {navItems.find(item => item.to === location.pathname)?.label || "Painel"}
           </h2>
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100">Usuário</p>
-              <p className="text-[10px] text-zinc-500 dark:text-zinc-400">Plano Pro</p>
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3 border-r border-zinc-200 dark:border-zinc-800 pr-6">
+              <div className="text-right">
+                <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100">{user?.email}</p>
+                <p className="text-[10px] text-zinc-500 dark:text-zinc-400">Plano Pro</p>
+              </div>
+              <div className="w-8 h-8 bg-zinc-200 dark:bg-zinc-800 rounded-full flex items-center justify-center text-xs font-bold text-zinc-500">
+                {user?.email?.[0].toUpperCase()}
+              </div>
             </div>
-            <div className="w-8 h-8 bg-zinc-200 dark:bg-zinc-800 rounded-full" />
+
+            <button
+              onClick={handleSignOut}
+              className="flex items-center gap-2 text-zinc-500 hover:text-red-500 transition-colors text-sm font-medium"
+            >
+              <LogOut size={18} />
+              Sair
+            </button>
           </div>
         </header>
 

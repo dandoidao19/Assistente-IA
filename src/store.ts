@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
+import { User } from '@supabase/supabase-js';
 
 export type EventUpdate = {
   id: string;
@@ -67,11 +68,15 @@ export type Suggestion = {
 };
 
 type AppState = {
+  user: User | null;
   appointments: Appointment[];
   tasks: Task[];
   memories: Memory[];
   settings: Settings;
   suggestions: Suggestion[];
+
+  setUser: (user: User | null) => void;
+  signOut: () => void;
   
   addAppointment: (appointment: Omit<Appointment, 'id' | 'isCompleted' | 'updates' | 'createdAt' | 'updatedAt' | 'wazeLink'>) => string;
   updateAppointment: (id: string, appointment: Partial<Appointment> & { newUpdate?: string }) => void;
@@ -98,18 +103,22 @@ type AppState = {
 
 export const useAppStore = create<AppState>()(
   persist(
-    (set) => ({
-      appointments: [],
-      tasks: [],
-      memories: [],
-      suggestions: [],
+    (set, _get) => ({
+      user: null as User | null,
+      appointments: [] as Appointment[],
+      tasks: [] as Task[],
+      memories: [] as Memory[],
+      suggestions: [] as Suggestion[],
       settings: {
         reminderRingtone: 'default',
         appointmentRingtone: 'default',
         advanceNotificationTime: 15,
         voiceType: 'voice1',
-        theme: 'light',
+        theme: 'light' as 'light' | 'dark',
       },
+
+      setUser: (user) => set({ user }),
+      signOut: () => set({ user: null }),
 
       addAppointment: (appointment) => {
         const id = uuidv4();
@@ -226,14 +235,12 @@ export const useAppStore = create<AppState>()(
         suggestions: state.suggestions.filter(s => s.id !== id)
       })),
 
-      getSubAppointments: (parentId) => {
-        const state = useAppStore.getState();
-        return state.appointments.filter(a => a.parentId === parentId);
+      getSubAppointments: (parentId: string) => {
+        return _get().appointments.filter((a: Appointment) => a.parentId === parentId);
       },
 
-      getSubTasks: (parentId) => {
-        const state = useAppStore.getState();
-        return state.tasks.filter(t => t.parentId === parentId);
+      getSubTasks: (parentId: string) => {
+        return _get().tasks.filter((t: Task) => t.parentId === parentId);
       },
     }),
     {
