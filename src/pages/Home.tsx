@@ -1,14 +1,32 @@
+import { useState } from 'react';
 import { useAppStore } from '../store';
 import { isToday, isTomorrow, isValid } from 'date-fns';
-import { Calendar, CheckSquare, Brain, ArrowRight, Plus, Bell, Share2, Check, X } from 'lucide-react';
+import { Calendar, CheckSquare, Brain, ArrowRight, Plus, Bell, Share2, Check, X, Send, Loader2, MessageSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { safeFormat, safeFormatDate } from '../utils/date';
+import { GoogleGenAI } from '@google/genai';
+import { toast } from 'react-hot-toast';
 
 export function Home() {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [commandText, setCommandText] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+
   const appointments = useAppStore((state) => state.appointments || []);
   const tasks = useAppStore((state) => state.tasks || []);
   const memories = useAppStore((state) => state.memories || []);
   const suggestions = useAppStore((state) => state.suggestions || []);
+
+  const addAppointment = useAppStore((state) => state.addAppointment);
+  const updateAppointment = useAppStore((state) => state.updateAppointment);
+  const deleteAppointment = useAppStore((state) => state.deleteAppointment);
+  const addTask = useAppStore((state) => state.addTask);
+  const updateTask = useAppStore((state) => state.updateTask);
+  const deleteTask = useAppStore((state) => state.deleteTask);
+  const addMemory = useAppStore((state) => state.addMemory);
+  const updateMemory = useAppStore((state) => state.updateMemory);
+  const deleteMemory = useAppStore((state) => state.deleteMemory);
+
   const acceptSuggestion = useAppStore((state) => state.acceptSuggestion);
   const rejectSuggestion = useAppStore((state) => state.rejectSuggestion);
 
@@ -63,6 +81,111 @@ export function Home() {
     }
   };
 
+  const handleCommand = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commandText.trim() || isProcessing) return;
+
+    const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!geminiKey) {
+      toast.error('Chave do Gemini não configurada.');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const genAI = new (GoogleGenAI as any)(geminiKey);
+      const model = genAI.getGenerativeModel({
+        model: "gemini-1.5-flash",
+        tools: [{
+          functionDeclarations: [
+            {
+              name: "addAppointment",
+              description: "Adiciona um compromisso na agenda.",
+              parameters: {
+                type: "OBJECT" as any,
+                properties: {
+                  title: { type: "STRING" },
+                  date: { type: "STRING", description: "YYYY-MM-DD" },
+                  time: { type: "STRING", description: "HH:mm" },
+                  address: { type: "STRING" },
+                  note: { type: "STRING" },
+                  reminderTime: { type: "NUMBER" }
+                },
+                required: ["title", "date", "time"]
+              }
+            },
+            {
+              name: "addTasks",
+              description: "Adiciona tarefas.",
+              parameters: {
+                type: "OBJECT" as any,
+                properties: {
+                  tasks: {
+                    type: "ARRAY",
+                    items: {
+                      type: "OBJECT",
+                      properties: {
+                        title: { type: "STRING" },
+                        note: { type: "STRING" }
+                      },
+                      required: ["title"]
+                    }
+                  }
+                },
+                required: ["tasks"]
+              }
+            },
+            {
+              name: "addMemory",
+              description: "Salva uma memória.",
+              parameters: {
+                type: "OBJECT" as any,
+                properties: {
+                  title: { type: "STRING" },
+                  folder: { type: "STRING" },
+                  content: { type: "STRING" },
+                  type: { type: "STRING", enum: ["text", "link", "image", "video"] }
+                },
+                required: ["title", "folder", "content", "type"]
+              }
+            }
+          ]
+        }]
+      });
+
+      const chat = model.startChat();
+      const prompt = `Usuário quer: "${commandText}". Processe este comando usando as ferramentas disponíveis.
+      Data atual: ${new Date().toISOString()}.
+      Se for uma tarefa simples, use addTasks. Se for um evento com data/hora, use addAppointment. Se for uma anotação ou link para guardar, use addMemory.`;
+
+      const result = await chat.sendMessage(prompt);
+      const call = result.response.functionCalls()?.[0];
+
+      if (call) {
+        const { name, args } = call;
+        if (name === 'addAppointment') {
+          addAppointment(args as any);
+          toast.success('Compromisso adicionado!');
+        } else if (name === 'addTasks') {
+          (args as any).tasks.forEach((t: any) => addTask({ ...t, type: 'standard' }));
+          toast.success('Tarefa(s) adicionada(s)!');
+        } else if (name === 'addMemory') {
+          addMemory(args as any);
+          toast.success('Memória salva!');
+        }
+        setCommandText('');
+        setIsModalOpen(false);
+      } else {
+        toast.error('Não entendi o comando. Tente ser mais específico.');
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao processar comando.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <div className="space-y-8 max-w-6xl mx-auto pb-20">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -75,12 +198,72 @@ export function Home() {
           </p>
         </div>
         <div className="flex gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-lg shadow-indigo-500/20">
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-lg shadow-indigo-500/20"
+          >
             <Plus size={18} />
             Novo Item
           </button>
         </div>
       </header>
+
+      {/* Command Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white dark:bg-zinc-900 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden border border-zinc-100 dark:border-zinc-800 animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl">
+                  <MessageSquare size={20} />
+                </div>
+                <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Comando por Texto</h2>
+              </div>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full text-zinc-500 transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCommand} className="p-6 space-y-4">
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                Digite o que deseja fazer (ex: "Marcar médico amanhã às 15h" ou "Lembrar de comprar pão")
+              </p>
+              <div className="relative">
+                <textarea
+                  autoFocus
+                  value={commandText}
+                  onChange={(e) => setCommandText(e.target.value)}
+                  className="w-full p-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none h-32 text-zinc-900 dark:text-zinc-100"
+                  placeholder="Escreva seu comando aqui..."
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleCommand(e);
+                    }
+                  }}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isProcessing || !commandText.trim()}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-indigo-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isProcessing ? (
+                  <Loader2 className="animate-spin" size={20} />
+                ) : (
+                  <>
+                    Processar Comando
+                    <Send size={18} />
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Suggestions and Sharing Section */}
       {suggestions.length > 0 && (
@@ -155,6 +338,11 @@ export function Home() {
                           <span className="text-zinc-300 dark:text-zinc-700">•</span>
                           <span>{appt.time}</span>
                         </p>
+                        {appt.note && (
+                          <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-2 italic line-clamp-2 bg-zinc-50 dark:bg-zinc-800/30 p-2 rounded-lg border border-zinc-100 dark:border-zinc-800/50">
+                            {appt.note}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
