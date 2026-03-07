@@ -162,7 +162,14 @@ export function AssistantFAB() {
       const taskSummary = tasks.map(t => ({ id: t.id, title: t.title, isCompleted: t.isCompleted }));
       const memorySummary = memories.map(m => ({ id: m.id, title: m.title, folder: m.folder }));
 
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || '' });
+const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+if (!geminiKey) {
+  toast.error('Chave do Gemini (VITE_GEMINI_API_KEY) não encontrada no .env');
+  stopAudio();
+  return;
+}
+
+const ai = new GoogleGenAI({ apiKey: geminiKey });
       const sessionPromise = ai.live.connect({
         model: "gemini-2.5-flash-native-audio-preview-09-2025",
         callbacks: {
