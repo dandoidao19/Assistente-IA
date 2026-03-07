@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { safeFormat, safeFormatDate } from '../utils/date';
+import { LinkifiedText } from '../components/LinkifiedText';
 
 export function Agenda() {
   const appointments = useAppStore((state) => state.appointments || []);
@@ -274,9 +275,9 @@ export function Agenda() {
                           )}
                         </div>
                         {appt.note && (
-                          <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-2 italic line-clamp-2 bg-zinc-50 dark:bg-zinc-800/30 p-2 rounded-lg border border-zinc-100 dark:border-zinc-800/50 w-fit max-w-full">
-                            {appt.note}
-                          </p>
+                          <div className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-2 italic line-clamp-2 bg-zinc-50 dark:bg-zinc-800/30 p-2 rounded-lg border border-zinc-100 dark:border-zinc-800/50 w-fit max-w-full">
+                            <LinkifiedText text={appt.note} />
+                          </div>
                         )}
                       </div>
                     </div>
@@ -365,7 +366,9 @@ export function Agenda() {
                   {selectedAppt.note && (
                     <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 rounded-2xl">
                       <p className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-1">Observação Inicial</p>
-                      <p className="text-zinc-700 dark:text-zinc-300">{selectedAppt.note}</p>
+                      <div className="text-zinc-700 dark:text-zinc-300">
+                        <LinkifiedText text={selectedAppt.note} />
+                      </div>
                     </div>
                   )}
 

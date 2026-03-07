@@ -4,6 +4,7 @@ import { isToday, isTomorrow, isValid } from 'date-fns';
 import { Calendar, CheckSquare, Brain, ArrowRight, Plus, Bell, Share2, Check, X, Send, Loader2, MessageSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { safeFormat, safeFormatDate } from '../utils/date';
+import { LinkifiedText } from '../components/LinkifiedText';
 import { GoogleGenAI } from '@google/genai';
 import { toast } from 'react-hot-toast';
 
@@ -96,88 +97,46 @@ export function Home() {
       const genAI = new (GoogleGenAI as any)(geminiKey);
       const model = genAI.getGenerativeModel({
         model: "gemini-1.5-flash",
-        tools: [{
-          functionDeclarations: [
-            {
-              name: "addAppointment",
-              description: "Adiciona um compromisso na agenda.",
-              parameters: {
-                type: "OBJECT" as any,
-                properties: {
-                  title: { type: "STRING" },
-                  date: { type: "STRING", description: "YYYY-MM-DD" },
-                  time: { type: "STRING", description: "HH:mm" },
-                  address: { type: "STRING" },
-                  note: { type: "STRING" },
-                  reminderTime: { type: "NUMBER" }
-                },
-                required: ["title", "date", "time"]
-              }
-            },
-            {
-              name: "addTasks",
-              description: "Adiciona tarefas.",
-              parameters: {
-                type: "OBJECT" as any,
-                properties: {
-                  tasks: {
-                    type: "ARRAY",
-                    items: {
-                      type: "OBJECT",
-                      properties: {
-                        title: { type: "STRING" },
-                        note: { type: "STRING" }
-                      },
-                      required: ["title"]
-                    }
-                  }
-                },
-                required: ["tasks"]
-              }
-            },
-            {
-              name: "addMemory",
-              description: "Salva uma memória.",
-              parameters: {
-                type: "OBJECT" as any,
-                properties: {
-                  title: { type: "STRING" },
-                  folder: { type: "STRING" },
-                  content: { type: "STRING" },
-                  type: { type: "STRING", enum: ["text", "link", "image", "video"] }
-                },
-                required: ["title", "folder", "content", "type"]
-              }
-            }
-          ]
-        }]
       });
 
       const chat = model.startChat();
-      const prompt = `Usuário quer: "${commandText}". Processe este comando usando as ferramentas disponíveis.
-      Data atual: ${new Date().toISOString()}.
-      Se for uma tarefa simples, use addTasks. Se for um evento com data/hora, use addAppointment. Se for uma anotação ou link para guardar, use addMemory.`;
+      const prompt = `Analise o seguinte pedido do usuário e transforme em um objeto JSON estruturado.
+      Data atual: ${new Date().toLocaleString('pt-BR')}.
+
+      Pedido: "${commandText}"
+
+      Regras:
+      1. Se for um compromisso ou evento com data/hora, responda apenas com um JSON no formato: {"type": "appointment", "data": {"title": "...", "date": "YYYY-MM-DD", "time": "HH:mm", "address": "...", "note": "..."}}
+      2. Se for uma tarefa simples (ex: "lembrar de..."), responda apenas com um JSON: {"type": "task", "data": {"title": "...", "note": "..."}}
+      3. Se for uma anotação ou link para salvar, responda apenas com um JSON: {"type": "memory", "data": {"title": "...", "folder": "Geral", "content": "...", "type": "text/link"}}
+      4. Responda APENAS o JSON válido, sem textos antes ou depois, sem blocos de markdown.
+
+      JSON:`;
 
       const result = await chat.sendMessage(prompt);
-      const call = result.response.functionCalls()?.[0];
+      const text = result.response.text().trim();
 
-      if (call) {
-        const { name, args } = call;
-        if (name === 'addAppointment') {
-          addAppointment(args as any);
-          toast.success('Compromisso adicionado!');
-        } else if (name === 'addTasks') {
-          (args as any).tasks.forEach((t: any) => addTask({ ...t, type: 'standard' }));
-          toast.success('Tarefa(s) adicionada(s)!');
-        } else if (name === 'addMemory') {
-          addMemory(args as any);
-          toast.success('Memória salva!');
-        }
-        setCommandText('');
-        setIsModalOpen(false);
-      } else {
-        toast.error('Não entendi o comando. Tente ser mais específico.');
+      // Limpeza mais agressiva do JSON
+      let cleanJson = text;
+      if (text.includes('{')) {
+        cleanJson = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
       }
+
+      const parsed = JSON.parse(cleanJson);
+
+      if (parsed.type === 'appointment') {
+        addAppointment(parsed.data);
+        toast.success('Compromisso adicionado!');
+      } else if (parsed.type === 'task') {
+        addTask({ ...parsed.data, type: 'standard' });
+        toast.success('Tarefa adicionada!');
+      } else if (parsed.type === 'memory') {
+        addMemory(parsed.data);
+        toast.success('Memória salva!');
+      }
+
+      setCommandText('');
+      setIsModalOpen(false);
     } catch (error) {
       console.error(error);
       toast.error('Erro ao processar comando.');
@@ -339,9 +298,9 @@ export function Home() {
                           <span>{appt.time}</span>
                         </p>
                         {appt.note && (
-                          <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-2 italic line-clamp-2 bg-zinc-50 dark:bg-zinc-800/30 p-2 rounded-lg border border-zinc-100 dark:border-zinc-800/50">
-                            {appt.note}
-                          </p>
+                          <div className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-2 italic line-clamp-2 bg-zinc-50 dark:bg-zinc-800/30 p-2 rounded-lg border border-zinc-100 dark:border-zinc-800/50">
+                            <LinkifiedText text={appt.note} />
+                          </div>
                         )}
                       </div>
                     </div>
@@ -380,7 +339,11 @@ export function Home() {
                       <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                         {task.title}
                       </h3>
-                      {task.note && <p className="text-[10px] text-zinc-500 dark:text-zinc-400 line-clamp-1 mt-0.5">{task.note}</p>}
+                      {task.note && (
+                        <div className="text-[10px] text-zinc-500 dark:text-zinc-400 line-clamp-1 mt-0.5">
+                          <LinkifiedText text={task.note} />
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
