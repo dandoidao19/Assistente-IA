@@ -94,7 +94,7 @@ export function Home() {
 
     setIsProcessing(true);
     try {
-      const genAI = new (GoogleGenAI as any)(geminiKey);
+      const genAI = new (GoogleGenAI as any)({ apiKey: geminiKey });
       const model = genAI.getGenerativeModel({
         model: "gemini-1.5-flash",
       });
@@ -105,11 +105,16 @@ export function Home() {
 
       Pedido: "${commandText}"
 
-      Regras:
-      1. Se for um compromisso ou evento com data/hora, responda apenas com um JSON no formato: {"type": "appointment", "data": {"title": "...", "date": "YYYY-MM-DD", "time": "HH:mm", "address": "...", "note": "..."}}
-      2. Se for uma tarefa simples (ex: "lembrar de..."), responda apenas com um JSON: {"type": "task", "data": {"title": "...", "note": "..."}}
-      3. Se for uma anotação ou link para salvar, responda apenas com um JSON: {"type": "memory", "data": {"title": "...", "folder": "Geral", "content": "...", "type": "text/link"}}
-      4. Responda APENAS o JSON válido, sem textos antes ou depois, sem blocos de markdown.
+      Regras de Negócio:
+      - Extraia SEMPRE URLs, links do Waze ou @perfis de redes sociais para o campo "note" ou "content".
+      - Se o usuário mencionar um local, coloque no campo "address".
+
+      Formatos de Resposta:
+      1. Compromisso: {"type": "appointment", "data": {"title": "...", "date": "YYYY-MM-DD", "time": "HH:mm", "address": "...", "note": "..."}}
+      2. Tarefa: {"type": "task", "data": {"title": "...", "note": "..."}}
+      3. Memória: {"type": "memory", "data": {"title": "...", "folder": "Geral", "content": "...", "type": "text/link"}}
+
+      Responda APENAS o JSON válido, sem blocos de código markdown.
 
       JSON:`;
 
@@ -298,7 +303,7 @@ export function Home() {
                           <span>{appt.time}</span>
                         </p>
                         {appt.note && (
-                          <div className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-2 italic line-clamp-2 bg-zinc-50 dark:bg-zinc-800/30 p-2 rounded-lg border border-zinc-100 dark:border-zinc-800/50">
+                          <div className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-2 italic line-clamp-2 bg-indigo-50/50 dark:bg-indigo-900/10 p-2 rounded-lg border border-indigo-100/50 dark:border-indigo-900/30">
                             <LinkifiedText text={appt.note} />
                           </div>
                         )}
@@ -340,7 +345,7 @@ export function Home() {
                         {task.title}
                       </h3>
                       {task.note && (
-                        <div className="text-[10px] text-zinc-500 dark:text-zinc-400 line-clamp-1 mt-0.5">
+                        <div className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1 italic line-clamp-1 bg-emerald-50/50 dark:bg-emerald-900/10 p-1.5 rounded-lg border border-emerald-100/50 dark:border-emerald-900/30 w-fit">
                           <LinkifiedText text={task.note} />
                         </div>
                       )}
