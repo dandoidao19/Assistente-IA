@@ -5,7 +5,7 @@ import { Calendar, CheckSquare, Brain, ArrowRight, Plus, Bell, Share2, Check, X,
 import { Link } from 'react-router-dom';
 import { safeFormat, safeFormatDate } from '../utils/date';
 import { LinkifiedText } from '../components/LinkifiedText';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { toast } from 'react-hot-toast';
 
 export function Home() {
@@ -94,7 +94,7 @@ export function Home() {
 
     setIsProcessing(true);
     try {
-      const genAI = new (GoogleGenAI as any)({ apiKey: geminiKey });
+      const genAI = new GoogleGenerativeAI(geminiKey);
       const model = genAI.getGenerativeModel({
         model: "gemini-1.5-flash",
       });
@@ -107,6 +107,7 @@ export function Home() {
 
       Regras de Negócio:
       - Extraia SEMPRE URLs, links do Waze ou @perfis de redes sociais para o campo "note" ou "content".
+      - Se o usuário mencionar qualquer detalhe extra além do título, coloque obrigatoriamente no campo "note" ou "content".
       - Se o usuário mencionar um local, coloque no campo "address".
 
       Formatos de Resposta:
