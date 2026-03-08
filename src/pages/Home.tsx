@@ -5,7 +5,6 @@ import { Calendar, CheckSquare, Brain, ArrowRight, Plus, Bell, Share2, Check, X,
 import { Link } from 'react-router-dom';
 import { safeFormat, safeFormatDate } from '../utils/date';
 import { LinkifiedText } from '../components/LinkifiedText';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { toast } from 'react-hot-toast';
 
 export function Home() {
@@ -94,35 +93,27 @@ export function Home() {
 
     setIsProcessing(true);
     try {
-      const genAI = new GoogleGenerativeAI(geminiKey);
-      const model = genAI.getGenerativeModel({
-        model: "gemini-1.5-flash",
-      });
-
-      const chat = model.startChat();
-      const prompt = `Analise o seguinte pedido do usuário e transforme em um objeto JSON estruturado.
+      const prompt = `Analise o pedido do usuário e responda APENAS com um JSON.
       Data atual: ${new Date().toLocaleString('pt-BR')}.
-
       Pedido: "${commandText}"
 
-      Regras de Negócio:
-      - Extraia SEMPRE URLs, links do Waze ou @perfis de redes sociais para o campo "note" ou "content".
-      - Se o usuário mencionar qualquer detalhe extra além do título, coloque obrigatoriamente no campo "note" ou "content".
-      - Se o usuário mencionar um local, coloque no campo "address".
+      Regras:
+      - Extraia links e detalhes extras para o campo "note" ou "content".
+      - Compromisso: {"type": "appointment", "data": {"title": "...", "date": "YYYY-MM-DD", "time": "HH:mm", "address": "...", "note": "..."}}
+      - Tarefa: {"type": "task", "data": {"title": "...", "note": "..."}}
+      - Memória: {"type": "memory", "data": {"title": "...", "folder": "Geral", "content": "...", "type": "text/link"}}`;
 
-      Formatos de Resposta:
-      1. Compromisso: {"type": "appointment", "data": {"title": "...", "date": "YYYY-MM-DD", "time": "HH:mm", "address": "...", "note": "..."}}
-      2. Tarefa: {"type": "task", "data": {"title": "...", "note": "..."}}
-      3. Memória: {"type": "memory", "data": {"title": "...", "folder": "Geral", "content": "...", "type": "text/link"}}
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      });
 
-      Responda APENAS o JSON válido, sem blocos de código markdown.
+      const result = await response.json();
+      const text = result.candidates[0].content.parts[0].text.trim();
 
-      JSON:`;
-
-      const result = await chat.sendMessage(prompt);
-      const text = result.response.text().trim();
-
-      // Limpeza mais agressiva do JSON
       let cleanJson = text;
       if (text.includes('{')) {
         cleanJson = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
