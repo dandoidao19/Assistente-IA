@@ -48,7 +48,7 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
           <div className="flex flex-col">
             <span className="font-bold text-xl tracking-tight leading-none">Assistente</span>
-            <span className="text-[10px] font-bold text-indigo-500 tracking-widest mt-0.5">v2.4</span>
+            <span className="text-[10px] font-bold text-indigo-500 tracking-widest mt-0.5">v2.5</span>
           </div>
         </div>
         
@@ -92,7 +92,7 @@ export function Layout({ children }: { children: ReactNode }) {
             </div>
             <div className="flex flex-col">
               <span className="font-bold text-lg leading-none">Assistente</span>
-              <span className="text-[8px] font-bold text-indigo-500 tracking-widest">v2.4</span>
+              <span className="text-[8px] font-bold text-indigo-500 tracking-widest">v2.5</span>
             </div>
           </div>
           <button 
@@ -176,7 +176,7 @@ export function Layout({ children }: { children: ReactNode }) {
                 </div>
                 <div className="flex flex-col">
                   <span className="font-bold text-lg leading-none">Assistente</span>
-                  <span className="text-[8px] font-bold text-indigo-500 tracking-widest">v2.4</span>
+                  <span className="text-[8px] font-bold text-indigo-500 tracking-widest">v2.5</span>
                 </div>
               </div>
               <button onClick={() => setIsSidebarOpen(false)} className="p-2 text-zinc-500">
