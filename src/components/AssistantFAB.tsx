@@ -321,6 +321,11 @@ const ai = new GoogleGenAI({ apiKey: geminiKey });
           },
           systemInstruction: `Você é um assistente pessoal conversacional em português.
 Data e hora atual: ${now}.
+
+REGRAS DE EXTRAÇÃO:
+- Se o usuário mencionar links (Waze, Sites) ou perfis de redes sociais (@perfil), coloque SEMPRE no campo "note" ou "content".
+- Se houver detalhes extras além do título, inclua-os no campo "note" ou "content".
+
 Você deve conversar com o usuário, confirmar o que ele pediu e usar as ferramentas disponíveis para salvar, editar ou excluir compromissos, tarefas e memórias.
 
 Aqui estão os dados atuais do usuário (use os IDs para editar ou excluir):

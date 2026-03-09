@@ -121,15 +121,17 @@ export function Home() {
 
       const parsed = JSON.parse(cleanJson);
 
-      if (parsed.type === 'appointment') {
+      if (parsed.type === 'appointment' && parsed.data) {
         addAppointment(parsed.data);
         toast.success('Compromisso adicionado!');
-      } else if (parsed.type === 'task') {
+      } else if (parsed.type === 'task' && parsed.data) {
         addTask({ ...parsed.data, type: 'standard' });
         toast.success('Tarefa adicionada!');
-      } else if (parsed.type === 'memory') {
+      } else if (parsed.type === 'memory' && parsed.data) {
         addMemory(parsed.data);
         toast.success('Memória salva!');
+      } else {
+        throw new Error('Formato de resposta inválido.');
       }
 
       setCommandText('');
