@@ -162,16 +162,16 @@ export function AssistantFAB() {
       const taskSummary = tasks.map(t => ({ id: t.id, title: t.title, isCompleted: t.isCompleted }));
       const memorySummary = memories.map(m => ({ id: m.id, title: m.title, folder: m.folder }));
 
-const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
-if (!geminiKey) {
-  toast.error('Chave do Gemini (VITE_GEMINI_API_KEY) não encontrada no .env');
-  stopAudio();
-  return;
-}
+      const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!geminiKey) {
+        toast.error('Chave do Gemini não configurada.');
+        setIsConnecting(false);
+        return;
+      }
 
-const ai = new GoogleGenAI({ apiKey: geminiKey });
+      const ai = new GoogleGenAI({ apiKey: geminiKey });
       const sessionPromise = ai.live.connect({
-        model: "gemini-2.5-flash-native-audio-preview-09-2025",
+        model: "gemini-1.5-flash",
         callbacks: {
           onopen: () => {
             setIsConnected(true);
@@ -235,11 +235,11 @@ const ai = new GoogleGenAI({ apiKey: geminiKey });
                     const tasksArgs = (args as any).tasks || [];
                     tasksArgs.forEach((t: any) => {
                       if (typeof t === 'string') {
-                        addTask({ title: cleanTitle(t), type: 'standard' });
+                        addTask({ title: cleanTitle(t) });
                       } else if (t && t.title) {
-                        addTask({ ...t, title: cleanTitle(t.title), type: t.type || 'standard' });
+                        addTask({ ...t, title: cleanTitle(t.title) });
                       } else if (t && t.task) {
-                        addTask({ title: cleanTitle(t.task), note: t.note, type: 'standard' });
+                        addTask({ title: cleanTitle(t.task), note: t.note });
                       }
                     });
                     result = { success: true, message: "Tarefas adicionadas." };
@@ -321,11 +321,6 @@ const ai = new GoogleGenAI({ apiKey: geminiKey });
           },
           systemInstruction: `Você é um assistente pessoal conversacional em português.
 Data e hora atual: ${now}.
-
-REGRAS DE EXTRAÇÃO:
-- Se o usuário mencionar links (Waze, Sites) ou perfis de redes sociais (@perfil), coloque SEMPRE no campo "note" ou "content".
-- Se houver detalhes extras além do título, inclua-os no campo "note" ou "content".
-
 Você deve conversar com o usuário, confirmar o que ele pediu e usar as ferramentas disponíveis para salvar, editar ou excluir compromissos, tarefas e memórias.
 
 Aqui estão os dados atuais do usuário (use os IDs para editar ou excluir):
