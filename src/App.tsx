@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useEffect, Component, ReactNode } from 'react';
 import { useAppStore } from './store';
@@ -11,7 +11,6 @@ import { Memory } from './pages/Memory';
 import { Settings } from './pages/Settings';
 import { Login } from './pages/Login';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { supabase } from './lib/supabase';
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   constructor(props: { children: ReactNode }) {
@@ -44,21 +43,6 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
 
 export default function App() {
   const theme = useAppStore((state) => state.settings?.theme || 'light');
-  const setUser = useAppStore((state) => state.setUser);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, [setUser]);
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -73,18 +57,25 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route element={<ProtectedRoute />}>
-            <Route element={<Layout children={<Outlet />} />}>
-              <Route path="/" element={<Home />} />
-              <Route path="/agenda" element={<Agenda />} />
-              <Route path="/tasks" element={<Tasks />} />
-              <Route path="/memory" element={<Memory />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="*" element={<Home />} />
-            </Route>
-          </Route>
+          <Route
+            path="/*"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/agenda" element={<Agenda />} />
+                    <Route path="/tasks" element={<Tasks />} />
+                    <Route path="/memory" element={<Memory />} />
+                    <Route path="/settings" element={<Settings />} />
+                    <Route path="*" element={<Home />} />
+                  </Routes>
+                </Layout>
+                <AssistantFAB />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
-        <AssistantFAB />
         <Toaster position="top-center" />
       </BrowserRouter>
     </ErrorBoundary>

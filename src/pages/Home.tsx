@@ -11,7 +11,6 @@ export function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [commandText, setCommandText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-
   const appointments = useAppStore((state) => state.appointments || []);
   const tasks = useAppStore((state) => state.tasks || []);
   const memories = useAppStore((state) => state.memories || []);
@@ -64,23 +63,6 @@ export function Home() {
     })
     .slice(0, 4);
 
-  const formatApptDate = (dateStr: string) => {
-    if (!dateStr) return 'N/A';
-    try {
-      if (dateStr.length === 10) { // YYYY-MM-DD
-        const [y, m, d] = dateStr.split('-').map(Number);
-        const date = new Date(y, m - 1, d);
-        if (isValid(date)) {
-          if (isToday(date)) return 'Hoje';
-          if (isTomorrow(date)) return 'Amanhã';
-        }
-      }
-      return safeFormat(dateStr, "dd/MM");
-    } catch {
-      return dateStr;
-    }
-  };
-
   const handleCommand = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!commandText.trim() || isProcessing) return;
@@ -103,7 +85,7 @@ export function Home() {
       - Tarefa: {"type": "task", "data": {"title": "...", "note": "..."}}
       - Memória: {"type": "memory", "data": {"title": "...", "folder": "Geral", "content": "...", "type": "text/link"}}`;
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -111,7 +93,18 @@ export function Home() {
         })
       });
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Gemini API Error:', errorData);
+        throw new Error(errorData.error?.message || 'Erro na comunicação com a IA.');
+      }
+
       const result = await response.json();
+
+      if (!result.candidates?.[0]?.content?.parts?.[0]?.text) {
+        throw new Error('A IA retornou uma resposta vazia ou inválida.');
+      }
+
       const text = result.candidates[0].content.parts[0].text.trim();
 
       let cleanJson = text;
@@ -141,6 +134,23 @@ export function Home() {
       toast.error('Erro ao processar comando.');
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const formatApptDate = (dateStr: string) => {
+    if (!dateStr) return 'N/A';
+    try {
+      if (dateStr.length === 10) { // YYYY-MM-DD
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const date = new Date(y, m - 1, d);
+        if (isValid(date)) {
+          if (isToday(date)) return 'Hoje';
+          if (isTomorrow(date)) return 'Amanhã';
+        }
+      }
+      return safeFormat(dateStr, "dd/MM");
+    } catch {
+      return dateStr;
     }
   };
 

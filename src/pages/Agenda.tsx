@@ -326,7 +326,7 @@ export function Agenda() {
                         </div>
                         <div className="flex items-center gap-1.5">
                           <Bell size={16} className="text-indigo-500" />
-                          <span>Lembrete: {formatReminderTime(selectedAppt.reminderTime || 0)} antes</span>
+                          <span>Lembrete: {formatReminderTime(selectedAppt.reminderTime)} antes</span>
                         </div>
                       </div>
                     </div>
@@ -508,7 +508,9 @@ export function Agenda() {
                         <div key={update.id} className="relative pl-8">
                           <div className="absolute left-[14px] top-2 w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_0_4px_rgba(99,102,241,0.1)]" />
                           <div className="bg-zinc-50 dark:bg-zinc-800/30 p-3 rounded-2xl border border-zinc-100 dark:border-zinc-800">
-                            <p className="text-sm text-zinc-700 dark:text-zinc-300">{update.text}</p>
+                            <div className="text-sm text-zinc-700 dark:text-zinc-300">
+                              <LinkifiedText text={update.text} />
+                            </div>
                             <p className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 mt-1 uppercase tracking-tighter">
                               {safeFormat(update.timestamp, "dd 'de' MMMM 'às' HH:mm")}
                             </p>
