@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAppStore } from '../store';
 import { isToday, isTomorrow, isValid } from 'date-fns';
-import { Calendar, CheckSquare, Brain, ArrowRight, Plus, Bell, Share2, Check, X, Send, Loader2, MessageSquare } from 'lucide-react';
+import { Calendar, CheckSquare, Brain, ArrowRight, Plus, Bell, Check, X, Send, Loader2, MessageSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { safeFormat, safeFormatDate } from '../utils/date';
 import { LinkifiedText } from '../components/LinkifiedText';
@@ -11,20 +11,15 @@ export function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [commandText, setCommandText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+
   const appointments = useAppStore((state) => state.appointments || []);
   const tasks = useAppStore((state) => state.tasks || []);
   const memories = useAppStore((state) => state.memories || []);
   const suggestions = useAppStore((state) => state.suggestions || []);
 
   const addAppointment = useAppStore((state) => state.addAppointment);
-  const updateAppointment = useAppStore((state) => state.updateAppointment);
-  const deleteAppointment = useAppStore((state) => state.deleteAppointment);
   const addTask = useAppStore((state) => state.addTask);
-  const updateTask = useAppStore((state) => state.updateTask);
-  const deleteTask = useAppStore((state) => state.deleteTask);
   const addMemory = useAppStore((state) => state.addMemory);
-  const updateMemory = useAppStore((state) => state.updateMemory);
-  const deleteMemory = useAppStore((state) => state.deleteMemory);
 
   const acceptSuggestion = useAppStore((state) => state.acceptSuggestion);
   const rejectSuggestion = useAppStore((state) => state.rejectSuggestion);
@@ -95,18 +90,15 @@ export function Home() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('Gemini API Error:', errorData);
         throw new Error(errorData.error?.message || 'Erro na comunicação com a IA.');
       }
 
       const result = await response.json();
-
       if (!result.candidates?.[0]?.content?.parts?.[0]?.text) {
-        throw new Error('A IA retornou uma resposta vazia ou inválida.');
+        throw new Error('Resposta inválida da IA.');
       }
 
       const text = result.candidates[0].content.parts[0].text.trim();
-
       let cleanJson = text;
       if (text.includes('{')) {
         cleanJson = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
@@ -123,8 +115,6 @@ export function Home() {
       } else if (parsed.type === 'memory' && parsed.data) {
         addMemory(parsed.data);
         toast.success('Memória salva!');
-      } else {
-        throw new Error('Formato de resposta inválido.');
       }
 
       setCommandText('');
@@ -179,7 +169,7 @@ export function Home() {
       {/* Command Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white dark:bg-zinc-900 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden border border-zinc-100 dark:border-zinc-800 animate-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-zinc-900 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden border border-zinc-100 dark:border-zinc-800">
             <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl">
@@ -187,46 +177,25 @@ export function Home() {
                 </div>
                 <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Comando por Texto</h2>
               </div>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full text-zinc-500 transition-colors"
-              >
+              <button onClick={() => setIsModalOpen(false)} className="p-2 text-zinc-500">
                 <X size={24} />
               </button>
             </div>
 
             <form onSubmit={handleCommand} className="p-6 space-y-4">
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                Digite o que deseja fazer (ex: "Marcar médico amanhã às 15h" ou "Lembrar de comprar pão")
-              </p>
-              <div className="relative">
-                <textarea
-                  autoFocus
-                  value={commandText}
-                  onChange={(e) => setCommandText(e.target.value)}
-                  className="w-full p-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none h-32 text-zinc-900 dark:text-zinc-100"
-                  placeholder="Escreva seu comando aqui..."
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleCommand(e);
-                    }
-                  }}
-                />
-              </div>
+              <textarea
+                autoFocus
+                value={commandText}
+                onChange={(e) => setCommandText(e.target.value)}
+                className="w-full p-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none h-32 text-zinc-900 dark:text-zinc-100"
+                placeholder="Ex: Marcar médico amanhã às 15h"
+              />
               <button
                 type="submit"
                 disabled={isProcessing || !commandText.trim()}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-indigo-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {isProcessing ? (
-                  <Loader2 className="animate-spin" size={20} />
-                ) : (
-                  <>
-                    Processar Comando
-                    <Send size={18} />
-                  </>
-                )}
+                {isProcessing ? <Loader2 className="animate-spin" size={20} /> : <>Processar <Send size={18} /></>}
               </button>
             </form>
           </div>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAppStore } from '../store';
-import { Folder, Link as LinkIcon, Image as ImageIcon, Video, FileText, Trash2, Search, X, Calendar, ExternalLink } from 'lucide-react';
+import { Folder, Link as LinkIcon, Image as ImageIcon, Video, FileText, Trash2, Search, X, Calendar } from 'lucide-react';
 import { safeFormat } from '../utils/date';
 import { LinkifiedText } from '../components/LinkifiedText';
 

@@ -20,7 +20,7 @@ export function Login() {
 
     try {
       if (isSignUp) {
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         toast.success('Conta criada! Verifique seu email.');
       } else {
@@ -43,7 +43,10 @@ export function Login() {
           <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-indigo-500/20 mb-4">
             <Mic2 size={32} />
           </div>
-          <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">Assistente IA</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">Assistente IA</h1>
+            <span className="text-[10px] font-bold text-indigo-500 tracking-widest mt-2">v2.9</span>
+          </div>
           <p className="text-zinc-500 dark:text-zinc-400 mt-2">Seu companheiro inteligente para o dia a dia</p>
         </div>
 

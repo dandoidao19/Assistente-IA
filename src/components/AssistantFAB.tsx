@@ -70,7 +70,6 @@ export function AssistantFAB() {
 
   useEffect(() => {
     return () => {
-      // eslint-disable-next-line react-hooks/exhaustive-deps
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
     };
   }, []);
@@ -168,7 +167,6 @@ export function AssistantFAB() {
         setIsConnecting(false);
         return;
       }
-
       const ai = new GoogleGenAI({ apiKey: geminiKey });
       const sessionPromise = ai.live.connect({
         model: "gemini-1.5-flash",

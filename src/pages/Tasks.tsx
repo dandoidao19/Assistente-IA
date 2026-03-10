@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAppStore, Task } from '../store';
+import { useAppStore } from '../store';
 import { CheckSquare, Square, Trash2, CalendarPlus, X, Clock, Calendar, Layers, Plus } from 'lucide-react';
 import { clsx } from 'clsx';
 import { toast } from 'react-hot-toast';
