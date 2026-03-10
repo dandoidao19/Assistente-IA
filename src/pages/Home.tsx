@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useAppStore } from '../store';
 import { isToday, isTomorrow, isValid } from 'date-fns';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Calendar, CheckSquare, Brain, ArrowRight, Plus, Bell, Check, X, Send, Loader2, MessageSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { safeFormat, safeFormatDate } from '../utils/date';
@@ -71,9 +70,6 @@ export function Home() {
 
     setIsProcessing(true);
     try {
-      const genAI = new GoogleGenerativeAI(geminiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
       const prompt = `Analise o pedido do usuário e responda APENAS com um JSON puro, sem blocos de código markdown.
       Data atual: ${new Date().toLocaleString('pt-BR')}.
       Pedido: "${commandText}"
@@ -84,10 +80,25 @@ export function Home() {
       - Tarefa: {"type": "task", "data": {"title": "...", "note": "..."}}
       - Memória: {"type": "memory", "data": {"title": "...", "folder": "Geral", "content": "...", "type": "text/link"}}`;
 
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text().trim();
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      });
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Erro na comunicação com a IA.');
+      }
+
+      const result = await response.json();
+      if (!result.candidates?.[0]?.content?.parts?.[0]?.text) {
+        throw new Error('Resposta inválida da IA.');
+      }
+
+      const text = result.candidates[0].content.parts[0].text.trim();
       console.log('Gemini AI Response:', text);
 
       let cleanJson = text;
