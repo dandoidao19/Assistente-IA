@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useEffect, Component, ReactNode } from 'react';
 import { useAppStore } from './store';
+import { supabase } from './lib/supabase';
 import { Layout } from './components/Layout';
 import { AssistantFAB } from './components/AssistantFAB';
 import { Home } from './pages/Home';
@@ -43,6 +44,24 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
 
 export default function App() {
   const theme = useAppStore((state) => state.settings?.theme || 'light');
+  const setUser = useAppStore((state) => state.setUser);
+  const user = useAppStore((state) => state.user);
+  const fetchData = useAppStore((state) => state.fetchData);
+
+  useEffect(() => {
+    // Escuta mudanças na autenticação
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [setUser]);
+
+  useEffect(() => {
+    if (user) {
+      fetchData();
+    }
+  }, [user, fetchData]);
 
   useEffect(() => {
     if (theme === 'dark') {

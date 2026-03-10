@@ -173,17 +173,19 @@ export function AssistantFAB() {
 
       const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
       if (!geminiKey) {
+        console.error('Environment variable VITE_GEMINI_API_KEY is missing');
         toast.error('Chave do Gemini não configurada.');
         setIsConnecting(false);
         return;
       }
+      console.log('Gemini API Key detected (prefix):', geminiKey.substring(0, 8) + '...');
       const ai = new GoogleGenAI({ apiKey: geminiKey });
-      console.log('Connecting to Gemini Live...');
+      console.log('Connecting to Gemini Live (v3.1)...');
       const sessionPromise = ai.live.connect({
-        model: "gemini-2.0-flash-exp",
+        model: "models/gemini-2.0-flash-exp",
         callbacks: {
           onopen: () => {
-            console.log('Gemini Live Connection Opened');
+            console.log('Gemini Live Connection Opened Successfully');
             setIsConnected(true);
             isConnectedRef.current = true;
             setIsConnecting(false);
@@ -205,23 +207,28 @@ export function AssistantFAB() {
                 resetSilenceTimer();
               }
 
-              sessionPromise.then((session) => {
+              if (sessionRef.current && isConnectedRef.current) {
                 try {
-                  if (session && isConnectedRef.current) {
-                    session.sendRealtimeInput({
-                      media: { data: base64, mimeType: 'audio/pcm;rate=16000' }
-                    });
-                  }
+                  sessionRef.current.send({
+                    realtimeInput: {
+                      mediaChunks: [{
+                        data: base64,
+                        mimeType: 'audio/pcm;rate=16000'
+                      }]
+                    }
+                  });
                 } catch (err) {
                   console.error('Error sending audio data:', err);
                   isConnectedRef.current = false;
                   stopAudio();
                 }
-              });
+              }
             };
           },
           onmessage: async (message: LiveServerMessage) => {
-            console.log('Gemini Live Message:', message);
+            if (message.serverContent?.modelTurn?.parts) {
+               console.log('Gemini Live Model Response');
+            }
             if (message.serverContent?.interrupted) {
               nextPlayTimeRef.current = playbackContextRef.current?.currentTime || 0;
             }
@@ -327,12 +334,12 @@ export function AssistantFAB() {
               });
             }
           },
-          onclose: () => {
-            console.log('Gemini Live Connection Closed');
+          onclose: (event: any) => {
+            console.log('Gemini Live Connection Closed:', event.code, event.reason || 'No reason');
             stopAudio();
           },
           onerror: (error) => {
-            console.error('Gemini Live Error:', error);
+            console.error('Gemini Live Error Details:', error);
             toast.error('Erro na conexão de voz.');
             stopAudio();
           }
@@ -342,7 +349,9 @@ export function AssistantFAB() {
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName } },
           },
-          systemInstruction: `Você é um assistente pessoal conversacional em português.
+          systemInstruction: {
+            parts: [{
+              text: `Você é um assistente pessoal conversacional em português.
 Data e hora atual: ${now}.
 Você deve conversar com o usuário, confirmar o que ele pediu e usar as ferramentas disponíveis para salvar, editar ou excluir compromissos, tarefas e memórias.
 
@@ -359,7 +368,9 @@ REGRAS IMPORTANTES:
 5. Você pode adicionar atualizações/observações extras a um compromisso existente usando a ferramenta 'updateAppointment' com o parâmetro 'newUpdate'.
 6. Sempre pergunte se o usuário precisa de mais alguma coisa após executar uma ação (desde que ele tenha dito "ok?" ou ficado em silêncio).
 7. Se o usuário disser que não precisa de mais nada, ou se despedir (ex: "só isso", "tchau", "obrigado"), você DEVE chamar a ferramenta 'endConversation' para encerrar a captura de áudio.
-8. Seja natural, prestativo e conciso.`,
+8. Seja natural, prestativo e conciso.`
+            }]
+          },
           tools: [{
             functionDeclarations: [
               {
@@ -523,7 +534,8 @@ REGRAS IMPORTANTES:
         },
       });
 
-      sessionRef.current = await sessionPromise;
+      const session = await sessionPromise;
+      sessionRef.current = session;
 
     } catch (error) {
       console.error(error);
