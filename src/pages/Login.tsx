@@ -45,7 +45,7 @@ export function Login() {
           </div>
           <div className="flex items-center gap-2">
             <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">Assistente IA</h1>
-            <span className="text-[10px] font-bold text-indigo-500 tracking-widest mt-2">v2.9.1</span>
+            <span className="text-[10px] font-bold text-indigo-500 tracking-widest mt-2">v3.0</span>
           </div>
           <p className="text-zinc-500 dark:text-zinc-400 mt-2">Seu companheiro inteligente para o dia a dia</p>
         </div>

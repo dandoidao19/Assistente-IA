@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAppStore } from '../store';
 import { isToday, isTomorrow, isValid } from 'date-fns';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Calendar, CheckSquare, Brain, ArrowRight, Plus, Bell, Check, X, Send, Loader2, MessageSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { safeFormat, safeFormatDate } from '../utils/date';
@@ -70,7 +71,10 @@ export function Home() {
 
     setIsProcessing(true);
     try {
-      const prompt = `Analise o pedido do usuário e responda APENAS com um JSON.
+      const genAI = new GoogleGenerativeAI(geminiKey);
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+      const prompt = `Analise o pedido do usuário e responda APENAS com um JSON puro, sem blocos de código markdown.
       Data atual: ${new Date().toLocaleString('pt-BR')}.
       Pedido: "${commandText}"
 
@@ -80,33 +84,17 @@ export function Home() {
       - Tarefa: {"type": "task", "data": {"title": "...", "note": "..."}}
       - Memória: {"type": "memory", "data": {"title": "...", "folder": "Geral", "content": "...", "type": "text/link"}}`;
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
-        })
-      });
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text().trim();
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Gemini API Error Detail:', JSON.stringify(errorData, null, 2));
-        throw new Error(errorData.error?.message || 'Erro na comunicação com a IA.');
-      }
+      console.log('Gemini AI Response:', text);
 
-      const result = await response.json();
-      console.log('Gemini raw response:', result);
-
-      if (!result.candidates?.[0]?.content?.parts?.[0]?.text) {
-        console.error('Gemini structure error:', result);
-        throw new Error('Resposta inválida da IA.');
-      }
-
-      const text = result.candidates[0].content.parts[0].text.trim();
-      console.log('Gemini extracted text:', text);
       let cleanJson = text;
-      if (text.includes('{')) {
-        cleanJson = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
+      // Robust JSON extraction even if AI includes markdown or extra text
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleanJson = jsonMatch[0];
       }
 
       const parsed = JSON.parse(cleanJson);
@@ -120,13 +108,15 @@ export function Home() {
       } else if (parsed.type === 'memory' && parsed.data) {
         addMemory(parsed.data);
         toast.success('Memória salva!');
+      } else {
+        throw new Error('Formato de resposta inválido.');
       }
 
       setCommandText('');
       setIsModalOpen(false);
-    } catch (error) {
-      console.error(error);
-      toast.error('Erro ao processar comando.');
+    } catch (error: any) {
+      console.error('AI Error:', error);
+      toast.error(error.message || 'Erro ao processar comando.');
     } finally {
       setIsProcessing(false);
     }

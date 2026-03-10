@@ -41,6 +41,7 @@ function float32ArrayToBase64(float32Array: Float32Array): string {
 export function AssistantFAB() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+  const isConnectedRef = useRef(false);
   
   const sessionRef = useRef<any>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -117,6 +118,7 @@ export function AssistantFAB() {
       playbackContextRef.current = null;
     }
     setIsConnected(false);
+    isConnectedRef.current = false;
     setIsConnecting(false);
   };
 
@@ -135,6 +137,7 @@ export function AssistantFAB() {
 
   const startAudio = async () => {
     setIsConnecting(true);
+    isConnectedRef.current = false;
     try {
       audioContextRef.current = new AudioContext({ sampleRate: 16000 });
       playbackContextRef.current = new AudioContext({ sampleRate: 24000 });
@@ -182,10 +185,13 @@ export function AssistantFAB() {
           onopen: () => {
             console.log('Gemini Live Connection Opened');
             setIsConnected(true);
+            isConnectedRef.current = true;
             setIsConnecting(false);
             resetSilenceTimer();
             
             processorRef.current!.onaudioprocess = (e) => {
+              if (!isConnectedRef.current) return;
+
               const inputData = e.inputBuffer.getChannelData(0);
               const base64 = float32ArrayToBase64(inputData);
               
@@ -200,9 +206,17 @@ export function AssistantFAB() {
               }
 
               sessionPromise.then((session) => {
-                session.sendRealtimeInput({
-                  media: { data: base64, mimeType: 'audio/pcm;rate=16000' }
-                });
+                try {
+                  if (session && isConnectedRef.current) {
+                    session.sendRealtimeInput({
+                      media: { data: base64, mimeType: 'audio/pcm;rate=16000' }
+                    });
+                  }
+                } catch (err) {
+                  console.error('Error sending audio data:', err);
+                  isConnectedRef.current = false;
+                  stopAudio();
+                }
               });
             };
           },
