@@ -144,7 +144,14 @@ export function AssistantFAB() {
 
       nextPlayTimeRef.current = playbackContextRef.current.currentTime;
 
-      streamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log('Requesting microphone permission...');
+      streamRef.current = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
       const source = audioContextRef.current.createMediaStreamSource(streamRef.current);
       processorRef.current = audioContextRef.current.createScriptProcessor(4096, 1, 1);
       
@@ -168,10 +175,12 @@ export function AssistantFAB() {
         return;
       }
       const ai = new GoogleGenAI({ apiKey: geminiKey });
+      console.log('Connecting to Gemini Live...');
       const sessionPromise = ai.live.connect({
-        model: "gemini-1.5-flash",
+        model: "gemini-2.0-flash-exp",
         callbacks: {
           onopen: () => {
+            console.log('Gemini Live Connection Opened');
             setIsConnected(true);
             setIsConnecting(false);
             resetSilenceTimer();
@@ -198,6 +207,7 @@ export function AssistantFAB() {
             };
           },
           onmessage: async (message: LiveServerMessage) => {
+            console.log('Gemini Live Message:', message);
             if (message.serverContent?.interrupted) {
               nextPlayTimeRef.current = playbackContextRef.current?.currentTime || 0;
             }
@@ -304,10 +314,11 @@ export function AssistantFAB() {
             }
           },
           onclose: () => {
+            console.log('Gemini Live Connection Closed');
             stopAudio();
           },
           onerror: (error) => {
-            console.error(error);
+            console.error('Gemini Live Error:', error);
             toast.error('Erro na conexão de voz.');
             stopAudio();
           }

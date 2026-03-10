@@ -80,7 +80,7 @@ export function Home() {
       - Tarefa: {"type": "task", "data": {"title": "...", "note": "..."}}
       - Memória: {"type": "memory", "data": {"title": "...", "folder": "Geral", "content": "...", "type": "text/link"}}`;
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -90,15 +90,20 @@ export function Home() {
 
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('Gemini API Error Detail:', JSON.stringify(errorData, null, 2));
         throw new Error(errorData.error?.message || 'Erro na comunicação com a IA.');
       }
 
       const result = await response.json();
+      console.log('Gemini raw response:', result);
+
       if (!result.candidates?.[0]?.content?.parts?.[0]?.text) {
+        console.error('Gemini structure error:', result);
         throw new Error('Resposta inválida da IA.');
       }
 
       const text = result.candidates[0].content.parts[0].text.trim();
+      console.log('Gemini extracted text:', text);
       let cleanJson = text;
       if (text.includes('{')) {
         cleanJson = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
