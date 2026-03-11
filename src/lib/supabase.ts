@@ -1,10 +1,23 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
-const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Supabase URL or Anon Key missing. Auth features may not work.');
+  console.warn('Supabase credentials missing. Auth and database sync will not work.');
 }
 
-export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '');
+// Validating URL format to prevent white screen crashes
+const isValidUrl = (url: string) => {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+export const supabase = createClient(
+  isValidUrl(supabaseUrl) ? supabaseUrl : 'https://placeholder-url.supabase.co',
+  supabaseAnonKey || 'placeholder-key'
+);

@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { safeFormat, safeFormatDate } from '../utils/date';
+import { LinkifiedText } from '../components/LinkifiedText';
 
 export function Agenda() {
   const appointments = useAppStore((state) => state.appointments || []);
@@ -274,9 +275,9 @@ export function Agenda() {
                           )}
                         </div>
                         {appt.note && (
-                          <p className="text-sm text-zinc-500 dark:text-zinc-400 line-clamp-1">
-                            {appt.note}
-                          </p>
+                          <div className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-2 italic line-clamp-2 bg-indigo-50/50 dark:bg-indigo-900/10 p-2 rounded-lg border border-indigo-100/50 dark:border-indigo-900/30 w-fit max-w-full">
+                            <LinkifiedText text={appt.note} />
+                          </div>
                         )}
                       </div>
                     </div>
@@ -325,7 +326,7 @@ export function Agenda() {
                         </div>
                         <div className="flex items-center gap-1.5">
                           <Bell size={16} className="text-indigo-500" />
-                          <span>Lembrete: {formatReminderTime(selectedAppt.reminderTime || 0)} antes</span>
+                          <span>Lembrete: {formatReminderTime(selectedAppt.reminderTime)} antes</span>
                         </div>
                       </div>
                     </div>
@@ -365,7 +366,9 @@ export function Agenda() {
                   {selectedAppt.note && (
                     <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 rounded-2xl">
                       <p className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-1">Observação Inicial</p>
-                      <p className="text-zinc-700 dark:text-zinc-300">{selectedAppt.note}</p>
+                      <div className="text-zinc-700 dark:text-zinc-300">
+                        <LinkifiedText text={selectedAppt.note} />
+                      </div>
                     </div>
                   )}
 
@@ -505,7 +508,9 @@ export function Agenda() {
                         <div key={update.id} className="relative pl-8">
                           <div className="absolute left-[14px] top-2 w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_0_4px_rgba(99,102,241,0.1)]" />
                           <div className="bg-zinc-50 dark:bg-zinc-800/30 p-3 rounded-2xl border border-zinc-100 dark:border-zinc-800">
-                            <p className="text-sm text-zinc-700 dark:text-zinc-300">{update.text}</p>
+                            <div className="text-sm text-zinc-700 dark:text-zinc-300">
+                              <LinkifiedText text={update.text} />
+                            </div>
                             <p className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 mt-1 uppercase tracking-tighter">
                               {safeFormat(update.timestamp, "dd 'de' MMMM 'às' HH:mm")}
                             </p>

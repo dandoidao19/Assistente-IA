@@ -1,14 +1,26 @@
+import { useState } from 'react';
 import { useAppStore } from '../store';
 import { isToday, isTomorrow, isValid } from 'date-fns';
-import { Calendar, CheckSquare, Brain, ArrowRight, Plus, Bell, Share2, Check, X } from 'lucide-react';
+import { Calendar, CheckSquare, Brain, ArrowRight, Plus, Bell, Check, X, Send, Loader2, MessageSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { safeFormat, safeFormatDate } from '../utils/date';
+import { LinkifiedText } from '../components/LinkifiedText';
+import { toast } from 'react-hot-toast';
 
 export function Home() {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [commandText, setCommandText] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+
   const appointments = useAppStore((state) => state.appointments || []);
   const tasks = useAppStore((state) => state.tasks || []);
   const memories = useAppStore((state) => state.memories || []);
   const suggestions = useAppStore((state) => state.suggestions || []);
+
+  const addAppointment = useAppStore((state) => state.addAppointment);
+  const addTask = useAppStore((state) => state.addTask);
+  const addMemory = useAppStore((state) => state.addMemory);
+
   const acceptSuggestion = useAppStore((state) => state.acceptSuggestion);
   const rejectSuggestion = useAppStore((state) => state.rejectSuggestion);
 
@@ -46,6 +58,81 @@ export function Home() {
     })
     .slice(0, 4);
 
+  const handleCommand = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commandText.trim() || isProcessing) return;
+
+    const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!geminiKey) {
+      toast.error('Chave do Gemini não configurada.');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const prompt = `Analise o pedido do usuário e responda APENAS com um JSON puro, sem blocos de código markdown.
+      Data atual: ${new Date().toLocaleString('pt-BR')}.
+      Pedido: "${commandText}"
+
+      Regras:
+      - Extraia links e detalhes extras para o campo "note" ou "content".
+      - Compromisso: {"type": "appointment", "data": {"title": "...", "date": "YYYY-MM-DD", "time": "HH:mm", "address": "...", "note": "..."}}
+      - Tarefa: {"type": "task", "data": {"title": "...", "note": "..."}}
+      - Memória: {"type": "memory", "data": {"title": "...", "folder": "Geral", "content": "...", "type": "text/link"}}`;
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Erro na comunicação com a IA.');
+      }
+
+      const result = await response.json();
+      if (!result.candidates?.[0]?.content?.parts?.[0]?.text) {
+        throw new Error('Resposta inválida da IA.');
+      }
+
+      const text = result.candidates[0].content.parts[0].text.trim();
+      console.log('Gemini AI Response:', text);
+
+      let cleanJson = text;
+      // Robust JSON extraction even if AI includes markdown or extra text
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleanJson = jsonMatch[0];
+      }
+
+      const parsed = JSON.parse(cleanJson);
+
+      if (parsed.type === 'appointment' && parsed.data) {
+        addAppointment(parsed.data);
+        toast.success('Compromisso adicionado!');
+      } else if (parsed.type === 'task' && parsed.data) {
+        addTask({ ...parsed.data, type: 'standard' });
+        toast.success('Tarefa adicionada!');
+      } else if (parsed.type === 'memory' && parsed.data) {
+        addMemory(parsed.data);
+        toast.success('Memória salva!');
+      } else {
+        throw new Error('Formato de resposta inválido.');
+      }
+
+      setCommandText('');
+      setIsModalOpen(false);
+    } catch (error: any) {
+      console.error('AI Error:', error);
+      toast.error(error.message || 'Erro ao processar comando.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const formatApptDate = (dateStr: string) => {
     if (!dateStr) return 'N/A';
     try {
@@ -75,12 +162,51 @@ export function Home() {
           </p>
         </div>
         <div className="flex gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-lg shadow-indigo-500/20">
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-lg shadow-indigo-500/20"
+          >
             <Plus size={18} />
             Novo Item
           </button>
         </div>
       </header>
+
+      {/* Command Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white dark:bg-zinc-900 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden border border-zinc-100 dark:border-zinc-800">
+            <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl">
+                  <MessageSquare size={20} />
+                </div>
+                <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Comando por Texto</h2>
+              </div>
+              <button onClick={() => setIsModalOpen(false)} className="p-2 text-zinc-500">
+                <X size={24} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCommand} className="p-6 space-y-4">
+              <textarea
+                autoFocus
+                value={commandText}
+                onChange={(e) => setCommandText(e.target.value)}
+                className="w-full p-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none h-32 text-zinc-900 dark:text-zinc-100"
+                placeholder="Ex: Marcar médico amanhã às 15h"
+              />
+              <button
+                type="submit"
+                disabled={isProcessing || !commandText.trim()}
+                className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isProcessing ? <Loader2 className="animate-spin" size={20} /> : <>Processar <Send size={18} /></>}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Suggestions and Sharing Section */}
       {suggestions.length > 0 && (
@@ -155,6 +281,11 @@ export function Home() {
                           <span className="text-zinc-300 dark:text-zinc-700">•</span>
                           <span>{appt.time}</span>
                         </p>
+                        {appt.note && (
+                          <div className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-2 italic line-clamp-2 bg-indigo-50/50 dark:bg-indigo-900/10 p-2 rounded-lg border border-indigo-100/50 dark:border-indigo-900/30">
+                            <LinkifiedText text={appt.note} />
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -192,7 +323,11 @@ export function Home() {
                       <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                         {task.title}
                       </h3>
-                      {task.note && <p className="text-[10px] text-zinc-500 dark:text-zinc-400 line-clamp-1 mt-0.5">{task.note}</p>}
+                      {task.note && (
+                        <div className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1 italic line-clamp-1 bg-emerald-50/50 dark:bg-emerald-900/10 p-1.5 rounded-lg border border-emerald-100/50 dark:border-emerald-900/30 w-fit">
+                          <LinkifiedText text={task.note} />
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

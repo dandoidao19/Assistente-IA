@@ -41,6 +41,7 @@ function float32ArrayToBase64(float32Array: Float32Array): string {
 export function AssistantFAB() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+  const isConnectedRef = useRef(false);
   
   const sessionRef = useRef<any>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -70,7 +71,6 @@ export function AssistantFAB() {
 
   useEffect(() => {
     return () => {
-      // eslint-disable-next-line react-hooks/exhaustive-deps
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
     };
   }, []);
@@ -118,6 +118,7 @@ export function AssistantFAB() {
       playbackContextRef.current = null;
     }
     setIsConnected(false);
+    isConnectedRef.current = false;
     setIsConnecting(false);
   };
 
@@ -136,6 +137,7 @@ export function AssistantFAB() {
 
   const startAudio = async () => {
     setIsConnecting(true);
+    isConnectedRef.current = false;
     try {
       audioContextRef.current = new AudioContext({ sampleRate: 16000 });
       playbackContextRef.current = new AudioContext({ sampleRate: 24000 });
@@ -145,7 +147,14 @@ export function AssistantFAB() {
 
       nextPlayTimeRef.current = playbackContextRef.current.currentTime;
 
-      streamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log('Requesting microphone permission...');
+      streamRef.current = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
       const source = audioContextRef.current.createMediaStreamSource(streamRef.current);
       processorRef.current = audioContextRef.current.createScriptProcessor(4096, 1, 1);
       
@@ -162,37 +171,31 @@ export function AssistantFAB() {
       const taskSummary = tasks.map(t => ({ id: t.id, title: t.title, isCompleted: t.isCompleted }));
       const memorySummary = memories.map(m => ({ id: m.id, title: m.title, folder: m.folder }));
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!geminiKey) {
+        console.error('Environment variable VITE_GEMINI_API_KEY is missing');
+        toast.error('Chave do Gemini não configurada.');
+        setIsConnecting(false);
+        return;
+      }
+      console.log('Gemini API Key detected (prefix):', geminiKey.substring(0, 8) + '...');
+      const ai = new GoogleGenAI({ apiKey: geminiKey });
+      console.log('Connecting to Gemini Live (v3.4)...');
+      // Removendo o prefixo 'models/' e tratando a atribuição da sessão de forma mais robusta
       const sessionPromise = ai.live.connect({
-        model: "gemini-2.5-flash-native-audio-preview-09-2025",
+        model: "gemini-2.0-flash-exp",
         callbacks: {
           onopen: () => {
+            console.log('Gemini Live Connection Opened Successfully');
             setIsConnected(true);
+            isConnectedRef.current = true;
             setIsConnecting(false);
             resetSilenceTimer();
-            
-            processorRef.current!.onaudioprocess = (e) => {
-              const inputData = e.inputBuffer.getChannelData(0);
-              const base64 = float32ArrayToBase64(inputData);
-              
-              // Simple volume check to reset silence timer
-              let sum = 0;
-              for (let i = 0; i < inputData.length; i++) {
-                sum += Math.abs(inputData[i]);
-              }
-              const average = sum / inputData.length;
-              if (average > 0.01) { // threshold for speech
-                resetSilenceTimer();
-              }
-
-              sessionPromise.then((session) => {
-                session.sendRealtimeInput({
-                  media: { data: base64, mimeType: 'audio/pcm;rate=16000' }
-                });
-              });
-            };
           },
           onmessage: async (message: LiveServerMessage) => {
+            if (message.serverContent?.modelTurn?.parts) {
+               console.log('Gemini Live Model Response');
+            }
             if (message.serverContent?.interrupted) {
               nextPlayTimeRef.current = playbackContextRef.current?.currentTime || 0;
             }
@@ -228,11 +231,11 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
                     const tasksArgs = (args as any).tasks || [];
                     tasksArgs.forEach((t: any) => {
                       if (typeof t === 'string') {
-                        addTask({ title: cleanTitle(t), type: 'standard' });
+                        addTask({ title: cleanTitle(t) });
                       } else if (t && t.title) {
-                        addTask({ ...t, title: cleanTitle(t.title), type: t.type || 'standard' });
+                        addTask({ ...t, title: cleanTitle(t.title) });
                       } else if (t && t.task) {
-                        addTask({ title: cleanTitle(t.task), note: t.note, type: 'standard' });
+                        addTask({ title: cleanTitle(t.task), note: t.note });
                       }
                     });
                     result = { success: true, message: "Tarefas adicionadas." };
@@ -298,11 +301,12 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
               });
             }
           },
-          onclose: () => {
+          onclose: (event: any) => {
+            console.log('Gemini Live Connection Closed:', event.code, event.reason || 'No reason');
             stopAudio();
           },
           onerror: (error) => {
-            console.error(error);
+            console.error('Gemini Live Error Details:', error);
             toast.error('Erro na conexão de voz.');
             stopAudio();
           }
@@ -312,7 +316,9 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName } },
           },
-          systemInstruction: `Você é um assistente pessoal conversacional em português.
+          systemInstruction: {
+            parts: [{
+              text: `Você é um assistente pessoal conversacional em português.
 Data e hora atual: ${now}.
 Você deve conversar com o usuário, confirmar o que ele pediu e usar as ferramentas disponíveis para salvar, editar ou excluir compromissos, tarefas e memórias.
 
@@ -329,7 +335,9 @@ REGRAS IMPORTANTES:
 5. Você pode adicionar atualizações/observações extras a um compromisso existente usando a ferramenta 'updateAppointment' com o parâmetro 'newUpdate'.
 6. Sempre pergunte se o usuário precisa de mais alguma coisa após executar uma ação (desde que ele tenha dito "ok?" ou ficado em silêncio).
 7. Se o usuário disser que não precisa de mais nada, ou se despedir (ex: "só isso", "tchau", "obrigado"), você DEVE chamar a ferramenta 'endConversation' para encerrar a captura de áudio.
-8. Seja natural, prestativo e conciso.`,
+8. Seja natural, prestativo e conciso.`
+            }]
+          },
           tools: [{
             functionDeclarations: [
               {
@@ -493,7 +501,43 @@ REGRAS IMPORTANTES:
         },
       });
 
-      sessionRef.current = await sessionPromise;
+      const session = await sessionPromise;
+      sessionRef.current = session;
+      console.log('Gemini Session Object Assigned to Ref');
+
+      if (processorRef.current) {
+        processorRef.current.onaudioprocess = (e) => {
+          if (!isConnectedRef.current || !sessionRef.current) return;
+
+          const inputData = e.inputBuffer.getChannelData(0);
+          const base64 = float32ArrayToBase64(inputData);
+
+          let sum = 0;
+          for (let i = 0; i < inputData.length; i++) {
+            sum += Math.abs(inputData[i]);
+          }
+          const average = sum / inputData.length;
+          if (average > 0.01) resetSilenceTimer();
+
+          try {
+            if (typeof sessionRef.current.send === 'function') {
+              sessionRef.current.send({
+                realtimeInput: {
+                  mediaChunks: [{
+                    data: base64,
+                    mimeType: 'audio/pcm;rate=16000'
+                  }]
+                }
+              });
+            }
+          } catch (err) {
+            if (!String(err).includes('CLOSED')) {
+              console.error('Error sending audio data:', err);
+            }
+            stopAudio();
+          }
+        };
+      }
 
     } catch (error) {
       console.error(error);

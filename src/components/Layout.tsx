@@ -46,7 +46,10 @@ export function Layout({ children }: { children: ReactNode }) {
           <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
             <Mic2 size={24} />
           </div>
-          <span className="font-bold text-xl tracking-tight">Assistente</span>
+          <div className="flex flex-col">
+            <span className="font-bold text-xl tracking-tight leading-none">Assistente</span>
+            <span className="text-[10px] font-bold text-indigo-500 tracking-widest mt-0.5">v1.0</span>
+          </div>
         </div>
         
         <nav className="flex-1 px-4 space-y-2 mt-4">
@@ -87,7 +90,10 @@ export function Layout({ children }: { children: ReactNode }) {
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
               <Mic2 size={18} />
             </div>
-            <span className="font-bold text-lg">Assistente</span>
+            <div className="flex flex-col">
+              <span className="font-bold text-lg leading-none">Assistente</span>
+              <span className="text-[8px] font-bold text-indigo-500 tracking-widest">v1.0</span>
+            </div>
           </div>
           <button 
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -168,7 +174,10 @@ export function Layout({ children }: { children: ReactNode }) {
                 <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
                   <Mic2 size={18} />
                 </div>
-                <span className="font-bold text-lg">Assistente</span>
+                <div className="flex flex-col">
+                  <span className="font-bold text-lg leading-none">Assistente</span>
+                  <span className="text-[8px] font-bold text-indigo-500 tracking-widest">v1.0</span>
+                </div>
               </div>
               <button onClick={() => setIsSidebarOpen(false)} className="p-2 text-zinc-500">
                 <X size={24} />
