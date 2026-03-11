@@ -6,7 +6,10 @@ export default defineConfig({
   plugins: [react()],
   define: {
     'process.env': {},
-    'global': 'window'
+    'global': 'globalThis'
+  },
+  optimizeDeps: {
+    include: ['@supabase/supabase-js', '@google/genai']
   },
   server: {
     port: 3000,
