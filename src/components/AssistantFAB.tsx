@@ -162,7 +162,7 @@ export function AssistantFAB() {
       const taskSummary = tasks.map(t => ({ id: t.id, title: t.title, isCompleted: t.isCompleted }));
       const memorySummary = memories.map(m => ({ id: m.id, title: m.title, folder: m.folder }));
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
       const sessionPromise = ai.live.connect({
         model: "gemini-2.0-flash-exp",
         callbacks: {
@@ -186,8 +186,13 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
               }
 
               sessionPromise.then((session) => {
-                session.sendRealtimeInput({
-                  media: { data: base64, mimeType: 'audio/pcm;rate=16000' }
+                session.send({
+                  realtimeInput: {
+                    mediaChunks: [{
+                      data: base64,
+                      mimeType: 'audio/pcm;rate=16000'
+                    }]
+                  }
                 });
               });
             };
