@@ -162,19 +162,19 @@ export function AssistantFAB() {
       const taskSummary = tasks.map(t => ({ id: t.id, title: t.title, isCompleted: t.isCompleted }));
       const memorySummary = memories.map(m => ({ id: m.id, title: m.title, folder: m.folder }));
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
       const sessionPromise = ai.live.connect({
-        model: "gemini-2.5-flash-native-audio-preview-09-2025",
+        model: "gemini-2.0-flash-exp",
         callbacks: {
           onopen: () => {
             setIsConnected(true);
             setIsConnecting(false);
             resetSilenceTimer();
-            
+
             processorRef.current!.onaudioprocess = (e) => {
               const inputData = e.inputBuffer.getChannelData(0);
               const base64 = float32ArrayToBase64(inputData);
-              
+
               // Simple volume check to reset silence timer
               let sum = 0;
               for (let i = 0; i < inputData.length; i++) {
@@ -186,8 +186,13 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
               }
 
               sessionPromise.then((session) => {
-                session.sendRealtimeInput({
-                  media: { data: base64, mimeType: 'audio/pcm;rate=16000' }
+                session.send({
+                  realtimeInput: {
+                    mediaChunks: [{
+                      data: base64,
+                      mimeType: 'audio/pcm;rate=16000'
+                    }]
+                  }
                 });
               });
             };
