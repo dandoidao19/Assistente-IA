@@ -180,9 +180,10 @@ export function AssistantFAB() {
       }
       console.log('Gemini API Key detected (prefix):', geminiKey.substring(0, 8) + '...');
       const ai = new GoogleGenAI({ apiKey: geminiKey });
-      console.log('Connecting to Gemini Live (v3.1)...');
+      console.log('Connecting to Gemini Live (v4.0)...');
+      // Revertendo para o modelo e métodos que funcionavam no repositório inicial
       const sessionPromise = ai.live.connect({
-        model: "models/gemini-2.0-flash-exp",
+        model: "gemini-2.0-flash-exp",
         callbacks: {
           onopen: () => {
             console.log('Gemini Live Connection Opened Successfully');
@@ -190,40 +191,46 @@ export function AssistantFAB() {
             isConnectedRef.current = true;
             setIsConnecting(false);
             resetSilenceTimer();
-            
-            processorRef.current!.onaudioprocess = (e) => {
-              if (!isConnectedRef.current) return;
 
-              const inputData = e.inputBuffer.getChannelData(0);
-              const base64 = float32ArrayToBase64(inputData);
-              
-              // Simple volume check to reset silence timer
-              let sum = 0;
-              for (let i = 0; i < inputData.length; i++) {
-                sum += Math.abs(inputData[i]);
-              }
-              const average = sum / inputData.length;
-              if (average > 0.01) { // threshold for speech
-                resetSilenceTimer();
-              }
+            if (processorRef.current) {
+              processorRef.current.onaudioprocess = (e) => {
+                if (!isConnectedRef.current) return;
 
-              if (sessionRef.current && isConnectedRef.current) {
-                try {
-                  sessionRef.current.send({
-                    realtimeInput: {
-                      mediaChunks: [{
-                        data: base64,
-                        mimeType: 'audio/pcm;rate=16000'
-                      }]
-                    }
-                  });
-                } catch (err) {
-                  console.error('Error sending audio data:', err);
-                  isConnectedRef.current = false;
-                  stopAudio();
+                const inputData = e.inputBuffer.getChannelData(0);
+                const base64 = float32ArrayToBase64(inputData);
+
+                let sum = 0;
+                for (let i = 0; i < inputData.length; i++) {
+                  sum += Math.abs(inputData[i]);
                 }
-              }
-            };
+                const average = sum / inputData.length;
+                if (average > 0.01) resetSilenceTimer();
+
+                sessionPromise.then((session: any) => {
+                  if (session && isConnectedRef.current) {
+                    try {
+                      // Usando o método de envio bidi de acordo com a versão atual do SDK
+                      if (typeof session.sendRealtimeInput === 'function') {
+                        session.sendRealtimeInput({
+                          media: { data: base64, mimeType: 'audio/pcm;rate=16000' }
+                        });
+                      } else if (typeof session.send === 'function') {
+                        session.send({
+                          realtimeInput: {
+                            mediaChunks: [{
+                              data: base64,
+                              mimeType: 'audio/pcm;rate=16000'
+                            }]
+                          }
+                        });
+                      }
+                    } catch (err) {
+                      console.error('Error sending audio data:', err);
+                    }
+                  }
+                });
+              };
+            }
           },
           onmessage: async (message: LiveServerMessage) => {
             if (message.serverContent?.modelTurn?.parts) {
@@ -534,8 +541,8 @@ REGRAS IMPORTANTES:
         },
       });
 
-      const session = await sessionPromise;
-      sessionRef.current = session;
+      sessionRef.current = await sessionPromise;
+      console.log('Gemini Session Object Resolved and Assigned');
 
     } catch (error) {
       console.error(error);
