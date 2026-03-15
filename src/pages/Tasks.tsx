@@ -4,6 +4,7 @@ import { CheckSquare, Square, Trash2, CalendarPlus, X, Clock, Calendar, Layers, 
 import { clsx } from 'clsx';
 import { toast } from 'react-hot-toast';
 import { safeFormat } from '../utils/date';
+import { LinkifiedText } from '../components/LinkifiedText';
 
 export function Tasks() {
   const tasks = useAppStore((state) => state.tasks || []);
@@ -122,9 +123,9 @@ export function Tasks() {
                     </div>
                     
                     {task.note && (
-                      <p className="pl-9 text-sm text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded-lg border border-zinc-100 dark:border-zinc-800 line-clamp-1">
-                        {task.note}
-                      </p>
+                      <div className="pl-9 text-sm text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded-lg border border-zinc-100 dark:border-zinc-800 line-clamp-1">
+                        <LinkifiedText text={task.note} />
+                      </div>
                     )}
 
                     <div className="pl-9">
@@ -259,7 +260,9 @@ export function Tasks() {
                 {selectedTask.note && (
                   <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 rounded-2xl">
                     <p className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-1">Observação</p>
-                    <p className="text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">{selectedTask.note}</p>
+                    <div className="text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">
+                      <LinkifiedText text={selectedTask.note} />
+                    </div>
                   </div>
                 )}
 

@@ -162,7 +162,12 @@ export function AssistantFAB() {
       const taskSummary = tasks.map(t => ({ id: t.id, title: t.title, isCompleted: t.isCompleted }));
       const memorySummary = memories.map(m => ({ id: m.id, title: m.title, folder: m.folder }));
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!geminiKey) {
+        throw new Error('Chave do Gemini (VITE_GEMINI_API_KEY) não configurada.');
+      }
+
+      const ai = new GoogleGenAI({ apiKey: geminiKey });
       const sessionPromise = ai.live.connect({
         model: "gemini-2.5-flash-native-audio-preview-09-2025",
         callbacks: {
@@ -170,11 +175,11 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
             setIsConnected(true);
             setIsConnecting(false);
             resetSilenceTimer();
-            
+
             processorRef.current!.onaudioprocess = (e) => {
               const inputData = e.inputBuffer.getChannelData(0);
               const base64 = float32ArrayToBase64(inputData);
-              
+
               // Simple volume check to reset silence timer
               let sum = 0;
               for (let i = 0; i < inputData.length; i++) {

@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
+import { supabase } from './lib/supabase';
+import { User } from '@supabase/supabase-js';
 
 export type EventUpdate = {
   id: string;
@@ -67,23 +69,27 @@ export type Suggestion = {
 };
 
 type AppState = {
+  user: User | null;
+  setUser: (user: User | null) => void;
   appointments: Appointment[];
   tasks: Task[];
   memories: Memory[];
   settings: Settings;
   suggestions: Suggestion[];
+
+  fetchData: () => Promise<void>;
   
-  addAppointment: (appointment: Omit<Appointment, 'id' | 'isCompleted' | 'updates' | 'createdAt' | 'updatedAt' | 'wazeLink'>) => string;
-  updateAppointment: (id: string, appointment: Partial<Appointment> & { newUpdate?: string }) => void;
-  deleteAppointment: (id: string) => void;
+  addAppointment: (appointment: Omit<Appointment, 'id' | 'isCompleted' | 'updates' | 'createdAt' | 'updatedAt' | 'wazeLink'>) => Promise<string>;
+  updateAppointment: (id: string, appointment: Partial<Appointment> & { newUpdate?: string }) => Promise<void>;
+  deleteAppointment: (id: string) => Promise<void>;
   
-  addTask: (task: Omit<Task, 'id' | 'isCompleted'>) => string;
-  updateTask: (id: string, task: Partial<Task>) => void;
-  deleteTask: (id: string) => void;
-  
-  addMemory: (memory: Omit<Memory, 'id' | 'createdAt'>) => void;
-  updateMemory: (id: string, memory: Partial<Memory>) => void;
-  deleteMemory: (id: string) => void;
+  addTask: (task: Omit<Task, 'id' | 'isCompleted'>) => Promise<string>;
+  updateTask: (id: string, task: Partial<Task>) => Promise<void>;
+  deleteTask: (id: string) => Promise<void>;
+
+  addMemory: (memory: Omit<Memory, 'id' | 'createdAt'>) => Promise<void>;
+  updateMemory: (id: string, memory: Partial<Memory>) => Promise<void>;
+  deleteMemory: (id: string) => Promise<void>;
   
   updateSettings: (settings: Partial<Settings>) => void;
   
@@ -98,7 +104,9 @@ type AppState = {
 
 export const useAppStore = create<AppState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
+      user: null,
+      setUser: (user) => set({ user }),
       appointments: [],
       tasks: [],
       memories: [],
@@ -111,30 +119,71 @@ export const useAppStore = create<AppState>()(
         theme: 'light',
       },
 
-      addAppointment: (appointment) => {
+      fetchData: async () => {
+        const { user } = get();
+        if (!user) return;
+
+        const [appts, tks, mems] = await Promise.all([
+          supabase.from('appointments').select('*').order('date', { ascending: true }),
+          supabase.from('tasks').select('*').order('created_at', { ascending: false }),
+          supabase.from('memories').select('*').order('created_at', { ascending: false }),
+        ]);
+
+        set({
+          appointments: (appts.data || []).map(a => ({
+            ...a,
+            wazeLink: a.waze_link,
+            taskId: a.task_id,
+            parentId: a.parent_id,
+            isCompleted: a.is_completed,
+            createdAt: a.created_at,
+            updatedAt: a.updated_at
+          })),
+          tasks: (tks.data || []).map(t => ({
+            ...t,
+            appointmentId: t.appointment_id,
+            parentId: t.parent_id,
+            isCompleted: t.is_completed
+          })),
+          memories: (mems.data || []).map(m => ({
+            ...m,
+            imageUrl: m.image_url,
+            createdAt: m.created_at
+          }))
+        });
+      },
+
+      addAppointment: async (appointment) => {
+        const { user } = get();
         const id = uuidv4();
         const now = new Date().toISOString();
         let wazeLink = undefined;
         if (appointment.address) {
           wazeLink = `https://waze.com/ul?q=${encodeURIComponent(appointment.address)}`;
         }
-        
-        set((state) => ({
-          appointments: [...state.appointments, { 
-            ...appointment, 
-            id, 
-            isCompleted: false,
-            updates: [],
-            createdAt: now,
-            updatedAt: now,
-            wazeLink
-          }]
-        }));
+
+        const newAppt = {
+          ...appointment,
+          id,
+          is_completed: false,
+          updates: [],
+          created_at: now,
+          updated_at: now,
+          waze_link: wazeLink,
+          user_id: user?.id,
+          task_id: appointment.taskId,
+          parent_id: appointment.parentId
+        };
+
+        const { error } = await supabase.from('appointments').insert([newAppt]);
+        if (error) console.error('Error adding appointment:', error);
+
+        get().fetchData();
         return id;
       },
-      updateAppointment: (id, updated) => set((state) => {
-        const appt = state.appointments.find(a => a.id === id);
-        if (!appt) return state;
+      updateAppointment: async (id, updated) => {
+        const appt = get().appointments.find(a => a.id === id);
+        if (!appt) return;
 
         const now = new Date().toISOString();
         const { newUpdate, ...rest } = updated;
@@ -153,52 +202,101 @@ export const useAppStore = create<AppState>()(
           wazeLink = `https://waze.com/ul?q=${encodeURIComponent(rest.address)}`;
         }
 
-        const newAppointments = state.appointments.map((a) => 
-          a.id === id ? { ...a, ...rest, updates, updatedAt: now, wazeLink } : a
-        );
+        const dbUpdate: any = {
+          ...rest,
+          updates,
+          updated_at: now,
+          waze_link: wazeLink,
+          is_completed: rest.isCompleted,
+          task_id: rest.taskId,
+          parent_id: rest.parentId
+        };
         
-        let newTasks = state.tasks;
+        delete dbUpdate.isCompleted;
+        delete dbUpdate.taskId;
+        delete dbUpdate.parentId;
+
+        const { error } = await supabase.from('appointments').update(dbUpdate).eq('id', id);
+        if (error) console.error('Error updating appointment:', error);
+
         if (appt.taskId && updated.isCompleted !== undefined) {
-          newTasks = state.tasks.map(t => t.id === appt.taskId ? { ...t, isCompleted: updated.isCompleted! } : t);
+          await supabase.from('tasks').update({ is_completed: updated.isCompleted }).eq('id', appt.taskId);
         }
 
-        return { appointments: newAppointments, tasks: newTasks };
-      }),
-      deleteAppointment: (id) => set((state) => ({
-        appointments: state.appointments.filter((a) => a.id !== id)
-      })),
+        get().fetchData();
+      },
+      deleteAppointment: async (id) => {
+        const { error } = await supabase.from('appointments').delete().eq('id', id);
+        if (error) console.error('Error deleting appointment:', error);
+        get().fetchData();
+      },
 
-      addTask: (task) => {
+      addTask: async (task) => {
+        const { user } = get();
         const id = uuidv4();
-        set((state) => ({
-          tasks: [...state.tasks, { ...task, id, isCompleted: false }]
-        }));
+        const { error } = await supabase.from('tasks').insert([{
+          ...task,
+          id,
+          is_completed: false,
+          user_id: user?.id,
+          appointment_id: task.appointmentId,
+          parent_id: task.parentId
+        }]);
+        if (error) console.error('Error adding task:', error);
+        get().fetchData();
         return id;
       },
-      updateTask: (id, updated) => set((state) => {
-        const task = state.tasks.find(t => t.id === id);
-        const newTasks = state.tasks.map((t) => t.id === id ? { ...t, ...updated } : t);
-        let newAppointments = state.appointments;
+      updateTask: async (id, updated) => {
+        const task = get().tasks.find(t => t.id === id);
+        const dbUpdate: any = {
+          ...updated,
+          is_completed: updated.isCompleted,
+          appointment_id: updated.appointmentId,
+          parent_id: updated.parentId
+        };
+        delete dbUpdate.isCompleted;
+        delete dbUpdate.appointmentId;
+        delete dbUpdate.parentId;
+
+        const { error } = await supabase.from('tasks').update(dbUpdate).eq('id', id);
+        if (error) console.error('Error updating task:', error);
 
         if (task && task.appointmentId && updated.isCompleted !== undefined) {
-          newAppointments = state.appointments.map(a => a.id === task.appointmentId ? { ...a, isCompleted: updated.isCompleted! } : a);
+          await supabase.from('appointments').update({ is_completed: updated.isCompleted }).eq('id', task.appointmentId);
         }
 
-        return { tasks: newTasks, appointments: newAppointments };
-      }),
-      deleteTask: (id) => set((state) => ({
-        tasks: state.tasks.filter((t) => t.id !== id)
-      })),
+        get().fetchData();
+      },
+      deleteTask: async (id) => {
+        const { error } = await supabase.from('tasks').delete().eq('id', id);
+        if (error) console.error('Error deleting task:', error);
+        get().fetchData();
+      },
 
-      addMemory: (memory) => set((state) => ({
-        memories: [...state.memories, { ...memory, id: uuidv4(), createdAt: new Date().toISOString() }]
-      })),
-      updateMemory: (id, updated) => set((state) => ({
-        memories: state.memories.map((m) => m.id === id ? { ...m, ...updated } : m)
-      })),
-      deleteMemory: (id) => set((state) => ({
-        memories: state.memories.filter((m) => m.id !== id)
-      })),
+      addMemory: async (memory) => {
+        const { user } = get();
+        const { error } = await supabase.from('memories').insert([{
+          ...memory,
+          id: uuidv4(),
+          user_id: user?.id,
+          image_url: memory.imageUrl
+        }]);
+        if (error) console.error('Error adding memory:', error);
+        get().fetchData();
+      },
+      updateMemory: async (id, updated) => {
+        const { error } = await supabase.from('memories').update({
+          ...updated,
+          image_url: updated.imageUrl
+        }).eq('id', id);
+        if (error) console.error('Error updating memory:', error);
+        get().fetchData();
+      },
+      deleteMemory: async (id) => {
+        const { error } = await supabase.from('memories').delete().eq('id', id);
+        if (error) console.error('Error deleting memory:', error);
+        get().fetchData();
+      },
 
       updateSettings: (newSettings) => set((state) => ({
         settings: { ...state.settings, ...newSettings }

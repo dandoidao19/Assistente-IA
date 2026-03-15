@@ -7,5 +7,13 @@ export default defineConfig({
   server: {
     port: 3000,
     host: '0.0.0.0'
+  },
+  define: {
+    'process.env': {},
+    'process': { env: {} },
+    'global': 'globalThis',
+  },
+  optimizeDeps: {
+    include: ['@google/genai', '@supabase/supabase-js']
   }
 })
