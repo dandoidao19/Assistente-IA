@@ -36,6 +36,7 @@ export function Layout({ children }: { children: ReactNode }) {
             <Mic2 size={24} />
           </div>
           <span className="font-bold text-xl tracking-tight">Assistente</span>
+          <span className="ml-auto text-[10px] font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1 rounded-lg">v4.1</span>
         </div>
         
         <nav className="flex-1 px-4 space-y-2 mt-4">

@@ -50,7 +50,7 @@ export function Login() {
           <Mic className="text-white" size={32} />
         </div>
         <h1 className="text-4xl font-black text-zinc-900 dark:text-white tracking-tighter">
-          Assistente IA <span className="text-indigo-600 text-sm font-bold align-top">v4.0</span>
+          Assistente IA <span className="text-indigo-600 text-sm font-bold align-top">v4.1</span>
         </h1>
         <p className="text-zinc-500 dark:text-zinc-400 mt-2">Seu companheiro inteligente para o dia a dia</p>
       </motion.div>
