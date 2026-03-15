@@ -275,7 +275,7 @@ export function Agenda() {
                           )}
                         </div>
                         {appt.note && (
-                          <div className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-2 italic line-clamp-2 bg-indigo-50/50 dark:bg-indigo-900/10 p-2 rounded-lg border border-indigo-100/50 dark:border-indigo-900/30 w-fit max-w-full">
+                          <div className="text-sm text-zinc-500 dark:text-zinc-400 line-clamp-1">
                             <LinkifiedText text={appt.note} />
                           </div>
                         )}
@@ -508,9 +508,7 @@ export function Agenda() {
                         <div key={update.id} className="relative pl-8">
                           <div className="absolute left-[14px] top-2 w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_0_4px_rgba(99,102,241,0.1)]" />
                           <div className="bg-zinc-50 dark:bg-zinc-800/30 p-3 rounded-2xl border border-zinc-100 dark:border-zinc-800">
-                            <div className="text-sm text-zinc-700 dark:text-zinc-300">
-                              <LinkifiedText text={update.text} />
-                            </div>
+                            <p className="text-sm text-zinc-700 dark:text-zinc-300">{update.text}</p>
                             <p className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 mt-1 uppercase tracking-tighter">
                               {safeFormat(update.timestamp, "dd 'de' MMMM 'às' HH:mm")}
                             </p>

@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import { User } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
+import { User } from '@supabase/supabase-js';
 
 export type EventUpdate = {
   id: string;
@@ -70,15 +70,13 @@ export type Suggestion = {
 
 type AppState = {
   user: User | null;
+  setUser: (user: User | null) => void;
   appointments: Appointment[];
   tasks: Task[];
   memories: Memory[];
   settings: Settings;
   suggestions: Suggestion[];
-  loading: boolean;
 
-  setUser: (user: User | null) => void;
-  signOut: () => void;
   fetchData: () => Promise<void>;
   
   addAppointment: (appointment: Omit<Appointment, 'id' | 'isCompleted' | 'updates' | 'createdAt' | 'updatedAt' | 'wazeLink'>) => Promise<string>;
@@ -88,7 +86,7 @@ type AppState = {
   addTask: (task: Omit<Task, 'id' | 'isCompleted'>) => Promise<string>;
   updateTask: (id: string, task: Partial<Task>) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
-  
+
   addMemory: (memory: Omit<Memory, 'id' | 'createdAt'>) => Promise<void>;
   updateMemory: (id: string, memory: Partial<Memory>) => Promise<void>;
   deleteMemory: (id: string) => Promise<void>;
@@ -106,136 +104,85 @@ type AppState = {
 
 export const useAppStore = create<AppState>()(
   persist(
-    (set, _get) => ({
-      user: null as User | null,
-      appointments: [] as Appointment[],
-      tasks: [] as Task[],
-      memories: [] as Memory[],
-      suggestions: [] as Suggestion[],
-      loading: false,
+    (set, get) => ({
+      user: null,
+      setUser: (user) => set({ user }),
+      appointments: [],
+      tasks: [],
+      memories: [],
+      suggestions: [],
       settings: {
         reminderRingtone: 'default',
         appointmentRingtone: 'default',
         advanceNotificationTime: 15,
         voiceType: 'voice1',
-        theme: 'light' as 'light' | 'dark',
+        theme: 'light',
       },
-
-      setUser: (user) => {
-        set({ user });
-        if (user) {
-          _get().fetchData();
-        }
-      },
-      signOut: () => set({ user: null, appointments: [], tasks: [], memories: [], suggestions: [] }),
 
       fetchData: async () => {
-        const { user } = _get();
+        const { user } = get();
         if (!user) return;
 
-        set({ loading: true });
-        try {
-          const [apptsRes, tasksRes, memoriesRes] = await Promise.all([
-            supabase.from('appointments').select('*').eq('user_id', user.id),
-            supabase.from('tasks').select('*').eq('user_id', user.id),
-            supabase.from('memories').select('*').eq('user_id', user.id)
-          ]);
+        const [appts, tks, mems] = await Promise.all([
+          supabase.from('appointments').select('*').order('date', { ascending: true }),
+          supabase.from('tasks').select('*').order('created_at', { ascending: false }),
+          supabase.from('memories').select('*').order('created_at', { ascending: false }),
+        ]);
 
-          if (apptsRes.data) {
-            set({ appointments: apptsRes.data.map(a => ({
-              id: a.id,
-              title: a.title,
-              date: a.date,
-              time: a.time,
-              address: a.address,
-              wazeLink: a.waze_link,
-              note: a.note,
-              updates: a.updates || [],
-              reminderTime: a.reminder_time,
-              isCompleted: a.is_completed,
-              taskId: a.task_id,
-              parentId: a.parent_id,
-              createdAt: a.created_at,
-              updatedAt: a.updated_at
-            })) });
-          }
-
-          if (tasksRes.data) {
-            set({ tasks: tasksRes.data.map(t => ({
-              id: t.id,
-              title: t.title,
-              note: t.note,
-              isCompleted: t.is_completed,
-              appointmentId: t.appointment_id,
-              parentId: t.parent_id,
-              deadline: t.deadline,
-              reminderTime: t.reminder_time,
-              type: t.type
-            })) });
-          }
-
-          if (memoriesRes.data) {
-            set({ memories: memoriesRes.data.map(m => ({
-              id: m.id,
-              title: m.title,
-              folder: m.folder,
-              content: m.content,
-              url: m.url,
-              imageUrl: m.image_url,
-              type: m.type,
-              createdAt: m.created_at
-            })) });
-          }
-        } finally {
-          set({ loading: false });
-        }
+        set({
+          appointments: (appts.data || []).map(a => ({
+            ...a,
+            wazeLink: a.waze_link,
+            taskId: a.task_id,
+            parentId: a.parent_id,
+            isCompleted: a.is_completed,
+            createdAt: a.created_at,
+            updatedAt: a.updated_at
+          })),
+          tasks: (tks.data || []).map(t => ({
+            ...t,
+            appointmentId: t.appointment_id,
+            parentId: t.parent_id,
+            isCompleted: t.is_completed
+          })),
+          memories: (mems.data || []).map(m => ({
+            ...m,
+            imageUrl: m.image_url,
+            createdAt: m.created_at
+          }))
+        });
       },
 
       addAppointment: async (appointment) => {
+        const { user } = get();
         const id = uuidv4();
         const now = new Date().toISOString();
         let wazeLink = undefined;
         if (appointment.address) {
           wazeLink = `https://waze.com/ul?q=${encodeURIComponent(appointment.address)}`;
         }
-        
-        const newAppt: Appointment = {
+
+        const newAppt = {
           ...appointment,
           id,
-          isCompleted: false,
+          is_completed: false,
           updates: [],
-          createdAt: now,
-          updatedAt: now,
-          wazeLink
+          created_at: now,
+          updated_at: now,
+          waze_link: wazeLink,
+          user_id: user?.id,
+          task_id: appointment.taskId,
+          parent_id: appointment.parentId
         };
 
-        set((state) => ({ appointments: [...state.appointments, newAppt] }));
+        const { error } = await supabase.from('appointments').insert([newAppt]);
+        if (error) console.error('Error adding appointment:', error);
 
-        const { user } = _get();
-        if (user) {
-          await supabase.from('appointments').insert({
-            id,
-            user_id: user.id,
-            title: appointment.title,
-            date: appointment.date,
-            time: appointment.time,
-            address: appointment.address,
-            waze_link: wazeLink,
-            note: appointment.note,
-            updates: [],
-            reminder_time: appointment.reminderTime,
-            is_completed: false,
-            task_id: appointment.taskId,
-            parent_id: appointment.parentId,
-            created_at: now,
-            updated_at: now
-          });
-        }
-
+        get().fetchData();
         return id;
       },
       updateAppointment: async (id, updated) => {
-        const appt = _get().appointments.find(a => a.id === id);
+        const appt = get().appointments.find(a => a.id === id);
         if (!appt) return;
 
         const now = new Date().toISOString();
@@ -255,164 +202,100 @@ export const useAppStore = create<AppState>()(
           wazeLink = `https://waze.com/ul?q=${encodeURIComponent(rest.address)}`;
         }
 
-        const newAppointments = _get().appointments.map((a) =>
-          a.id === id ? { ...a, ...rest, updates, updatedAt: now, wazeLink } : a
-        );
+        const dbUpdate: any = {
+          ...rest,
+          updates,
+          updated_at: now,
+          waze_link: wazeLink,
+          is_completed: rest.isCompleted,
+          task_id: rest.taskId,
+          parent_id: rest.parentId
+        };
         
-        let newTasks = _get().tasks;
+        delete dbUpdate.isCompleted;
+        delete dbUpdate.taskId;
+        delete dbUpdate.parentId;
+
+        const { error } = await supabase.from('appointments').update(dbUpdate).eq('id', id);
+        if (error) console.error('Error updating appointment:', error);
+
         if (appt.taskId && updated.isCompleted !== undefined) {
-          newTasks = _get().tasks.map(t => t.id === appt.taskId ? { ...t, isCompleted: updated.isCompleted! } : t);
-          const { user } = _get();
-          if (user) {
-            await supabase.from('tasks').update({ is_completed: updated.isCompleted }).eq('id', appt.taskId);
-          }
+          await supabase.from('tasks').update({ is_completed: updated.isCompleted }).eq('id', appt.taskId);
         }
 
-        set({ appointments: newAppointments, tasks: newTasks });
-
-        const { user } = _get();
-        if (user) {
-          await supabase.from('appointments').update({
-            title: rest.title,
-            date: rest.date,
-            time: rest.time,
-            address: rest.address,
-            waze_link: wazeLink,
-            note: rest.note,
-            updates,
-            reminder_time: rest.reminderTime,
-            is_completed: rest.isCompleted,
-            task_id: rest.taskId,
-            parent_id: rest.parentId,
-            updated_at: now
-          }).eq('id', id);
-        }
+        get().fetchData();
       },
       deleteAppointment: async (id) => {
-        set((state) => ({
-          appointments: state.appointments.filter((a) => a.id !== id)
-        }));
-
-        const { user } = _get();
-        if (user) {
-          await supabase.from('appointments').delete().eq('id', id);
-        }
+        const { error } = await supabase.from('appointments').delete().eq('id', id);
+        if (error) console.error('Error deleting appointment:', error);
+        get().fetchData();
       },
 
       addTask: async (task) => {
+        const { user } = get();
         const id = uuidv4();
-        const newTask: Task = { ...task, id, isCompleted: false };
-        set((state) => ({
-          tasks: [...state.tasks, newTask]
-        }));
-
-        const { user } = _get();
-        if (user) {
-          await supabase.from('tasks').insert({
-            id,
-            user_id: user.id,
-            title: task.title,
-            note: task.note,
-            is_completed: false,
-            appointment_id: task.appointmentId,
-            parent_id: task.parentId,
-            deadline: task.deadline,
-            reminder_time: task.reminderTime,
-            type: task.type
-          });
-        }
-
+        const { error } = await supabase.from('tasks').insert([{
+          ...task,
+          id,
+          is_completed: false,
+          user_id: user?.id,
+          appointment_id: task.appointmentId,
+          parent_id: task.parentId
+        }]);
+        if (error) console.error('Error adding task:', error);
+        get().fetchData();
         return id;
       },
       updateTask: async (id, updated) => {
-        const task = _get().tasks.find(t => t.id === id);
-        const newTasks = _get().tasks.map((t) => t.id === id ? { ...t, ...updated } : t);
-        let newAppointments = _get().appointments;
+        const task = get().tasks.find(t => t.id === id);
+        const dbUpdate: any = {
+          ...updated,
+          is_completed: updated.isCompleted,
+          appointment_id: updated.appointmentId,
+          parent_id: updated.parentId
+        };
+        delete dbUpdate.isCompleted;
+        delete dbUpdate.appointmentId;
+        delete dbUpdate.parentId;
+
+        const { error } = await supabase.from('tasks').update(dbUpdate).eq('id', id);
+        if (error) console.error('Error updating task:', error);
 
         if (task && task.appointmentId && updated.isCompleted !== undefined) {
-          newAppointments = _get().appointments.map(a => a.id === task.appointmentId ? { ...a, isCompleted: updated.isCompleted! } : a);
-          const { user } = _get();
-          if (user) {
-            await supabase.from('appointments').update({ is_completed: updated.isCompleted }).eq('id', task.appointmentId);
-          }
+          await supabase.from('appointments').update({ is_completed: updated.isCompleted }).eq('id', task.appointmentId);
         }
 
-        set({ tasks: newTasks, appointments: newAppointments });
-
-        const { user } = _get();
-        if (user) {
-          await supabase.from('tasks').update({
-            title: updated.title,
-            note: updated.note,
-            is_completed: updated.isCompleted,
-            appointment_id: updated.appointmentId,
-            parent_id: updated.parentId,
-            deadline: updated.deadline,
-            reminder_time: updated.reminderTime,
-            type: updated.type
-          }).eq('id', id);
-        }
+        get().fetchData();
       },
       deleteTask: async (id) => {
-        set((state) => ({
-          tasks: state.tasks.filter((t) => t.id !== id)
-        }));
-
-        const { user } = _get();
-        if (user) {
-          await supabase.from('tasks').delete().eq('id', id);
-        }
+        const { error } = await supabase.from('tasks').delete().eq('id', id);
+        if (error) console.error('Error deleting task:', error);
+        get().fetchData();
       },
 
       addMemory: async (memory) => {
-        const id = uuidv4();
-        const createdAt = new Date().toISOString();
-        const newMemory: Memory = { ...memory, id, createdAt };
-        set((state) => ({
-          memories: [...state.memories, newMemory]
-        }));
-
-        const { user } = _get();
-        if (user) {
-          await supabase.from('memories').insert({
-            id,
-            user_id: user.id,
-            title: memory.title,
-            folder: memory.folder,
-            content: memory.content,
-            url: memory.url,
-            image_url: memory.imageUrl,
-            type: memory.type,
-            created_at: createdAt
-          });
-        }
+        const { user } = get();
+        const { error } = await supabase.from('memories').insert([{
+          ...memory,
+          id: uuidv4(),
+          user_id: user?.id,
+          image_url: memory.imageUrl
+        }]);
+        if (error) console.error('Error adding memory:', error);
+        get().fetchData();
       },
       updateMemory: async (id, updated) => {
-        set((state) => ({
-          memories: state.memories.map((m) => m.id === id ? { ...m, ...updated } : m)
-        }));
-
-        const { user } = _get();
-        if (user) {
-          await supabase.from('memories').update({
-            title: updated.title,
-            folder: updated.folder,
-            content: updated.content,
-            url: updated.url,
-            image_url: updated.imageUrl,
-            type: updated.type
-          }).eq('id', id);
-        }
+        const { error } = await supabase.from('memories').update({
+          ...updated,
+          image_url: updated.imageUrl
+        }).eq('id', id);
+        if (error) console.error('Error updating memory:', error);
+        get().fetchData();
       },
       deleteMemory: async (id) => {
-        set((state) => ({
-          memories: state.memories.filter((m) => m.id !== id)
-        }));
-
-        const { user } = _get();
-        if (user) {
-          await supabase.from('memories').delete().eq('id', id);
-        }
+        const { error } = await supabase.from('memories').delete().eq('id', id);
+        if (error) console.error('Error deleting memory:', error);
+        get().fetchData();
       },
 
       updateSettings: (newSettings) => set((state) => ({
@@ -441,12 +324,14 @@ export const useAppStore = create<AppState>()(
         suggestions: state.suggestions.filter(s => s.id !== id)
       })),
 
-      getSubAppointments: (parentId: string) => {
-        return _get().appointments.filter((a: Appointment) => a.parentId === parentId);
+      getSubAppointments: (parentId) => {
+        const state = useAppStore.getState();
+        return state.appointments.filter(a => a.parentId === parentId);
       },
 
-      getSubTasks: (parentId: string) => {
-        return _get().tasks.filter((t: Task) => t.parentId === parentId);
+      getSubTasks: (parentId) => {
+        const state = useAppStore.getState();
+        return state.tasks.filter(t => t.parentId === parentId);
       },
     }),
     {

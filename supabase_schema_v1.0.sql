@@ -1,7 +1,7 @@
 -- Tabela de Compromissos (Appointments)
 CREATE TABLE IF NOT EXISTS appointments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE DEFAULT auth.uid(),
   title TEXT NOT NULL,
   date DATE NOT NULL,
   time TIME NOT NULL,
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS appointments (
 -- Tabela de Tarefas (Tasks)
 CREATE TABLE IF NOT EXISTS tasks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE DEFAULT auth.uid(),
   title TEXT NOT NULL,
   note TEXT,
   is_completed BOOLEAN DEFAULT false,
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS tasks (
 -- Tabela de Memórias (Memories)
 CREATE TABLE IF NOT EXISTS memories (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE DEFAULT auth.uid(),
   title TEXT NOT NULL,
   folder TEXT DEFAULT 'Geral',
   content TEXT,

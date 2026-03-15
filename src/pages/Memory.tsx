@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAppStore } from '../store';
-import { Folder, Link as LinkIcon, Image as ImageIcon, Video, FileText, Trash2, Search, X, Calendar } from 'lucide-react';
+import { Folder, Link as LinkIcon, Image as ImageIcon, Video, FileText, Trash2, Search, X, Calendar, ExternalLink } from 'lucide-react';
 import { safeFormat } from '../utils/date';
 import { LinkifiedText } from '../components/LinkifiedText';
 
@@ -89,9 +89,15 @@ export function Memory() {
                           <Trash2 size={16} />
                         </button>
                       </div>
-                      <div className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2">
-                        <LinkifiedText text={memory.content || ''} />
-                      </div>
+                      {memory.type === 'link' ? (
+                        <div className="text-sm text-indigo-600 dark:text-indigo-400 truncate">
+                          {memory.content}
+                        </div>
+                      ) : (
+                        <div className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2">
+                          <LinkifiedText text={memory.content || ''} />
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -138,9 +144,21 @@ export function Memory() {
 
                 <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800 rounded-2xl">
                   <p className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2">Conteúdo</p>
-                  <div className="text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">
-                    <LinkifiedText text={selectedMemory.content || ''} />
-                  </div>
+                  {selectedMemory.type === 'link' ? (
+                    <a
+                      href={selectedMemory.content}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-2 break-all"
+                    >
+                      {selectedMemory.content}
+                      <ExternalLink size={14} className="shrink-0" />
+                    </a>
+                  ) : (
+                    <div className="text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">
+                      <LinkifiedText text={selectedMemory.content || ''} />
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2 text-[10px] font-bold text-zinc-400 dark:text-zinc-600 uppercase tracking-wider">

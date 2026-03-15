@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAppStore } from '../store';
+import { useAppStore, Task } from '../store';
 import { CheckSquare, Square, Trash2, CalendarPlus, X, Clock, Calendar, Layers, Plus } from 'lucide-react';
 import { clsx } from 'clsx';
 import { toast } from 'react-hot-toast';
@@ -123,7 +123,7 @@ export function Tasks() {
                     </div>
                     
                     {task.note && (
-                      <div className="pl-9 text-[10px] text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded-lg border border-zinc-100 dark:border-zinc-800 line-clamp-2 italic">
+                      <div className="pl-9 text-sm text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded-lg border border-zinc-100 dark:border-zinc-800 line-clamp-1">
                         <LinkifiedText text={task.note} />
                       </div>
                     )}

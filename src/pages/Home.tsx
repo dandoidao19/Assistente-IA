@@ -16,11 +16,6 @@ export function Home() {
   const tasks = useAppStore((state) => state.tasks || []);
   const memories = useAppStore((state) => state.memories || []);
   const suggestions = useAppStore((state) => state.suggestions || []);
-
-  const addAppointment = useAppStore((state) => state.addAppointment);
-  const addTask = useAppStore((state) => state.addTask);
-  const addMemory = useAppStore((state) => state.addMemory);
-
   const acceptSuggestion = useAppStore((state) => state.acceptSuggestion);
   const rejectSuggestion = useAppStore((state) => state.rejectSuggestion);
 
@@ -99,10 +94,8 @@ export function Home() {
       }
 
       const text = result.candidates[0].content.parts[0].text.trim();
-      console.log('Gemini AI Response:', text);
 
       let cleanJson = text;
-      // Robust JSON extraction even if AI includes markdown or extra text
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         cleanJson = jsonMatch[0];

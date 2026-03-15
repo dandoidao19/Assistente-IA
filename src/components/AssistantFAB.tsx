@@ -164,12 +164,12 @@ export function AssistantFAB() {
 
 const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
       if (!geminiKey) {
-        throw new Error('VITE_GEMINI_API_KEY não configurada no arquivo .env.local');
+        throw new Error('Chave do Gemini (VITE_GEMINI_API_KEY) não configurada.');
       }
 
       const ai = new GoogleGenAI({ apiKey: geminiKey });
       const sessionPromise = ai.live.connect({
-        model: "models/gemini-2.0-flash-exp",
+        model: "gemini-2.5-flash-native-audio-preview-09-2025",
         callbacks: {
           onopen: () => {
             setIsConnected(true);

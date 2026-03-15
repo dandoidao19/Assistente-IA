@@ -1,8 +1,6 @@
 import { ReactNode, useState, useEffect, useRef } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Calendar, CheckSquare, Brain, Settings, Menu, X, Mic2, LogOut } from 'lucide-react';
-import { useAppStore } from '../store';
-import { supabase } from '../lib/supabase';
+import { NavLink, useLocation } from 'react-router-dom';
+import { Home, Calendar, CheckSquare, Brain, Settings, Menu, X, Mic2 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -21,16 +19,7 @@ const navItems = [
 export function Layout({ children }: { children: ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
-  const navigate = useNavigate();
   const mainRef = useRef<HTMLElement>(null);
-  const user = useAppStore((state) => state.user);
-  const signOut = useAppStore((state) => state.signOut);
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    signOut();
-    navigate('/login');
-  };
 
   useEffect(() => {
     if (mainRef.current) {
@@ -46,10 +35,7 @@ export function Layout({ children }: { children: ReactNode }) {
           <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
             <Mic2 size={24} />
           </div>
-          <div className="flex flex-col">
-            <span className="font-bold text-xl tracking-tight leading-none">Assistente</span>
-            <span className="text-[10px] font-bold text-indigo-500 tracking-widest mt-0.5">v4.0</span>
-          </div>
+          <span className="font-bold text-xl tracking-tight">Assistente</span>
         </div>
         
         <nav className="flex-1 px-4 space-y-2 mt-4">
@@ -90,10 +76,7 @@ export function Layout({ children }: { children: ReactNode }) {
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
               <Mic2 size={18} />
             </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-lg leading-none">Assistente</span>
-              <span className="text-[8px] font-bold text-indigo-500 tracking-widest">v4.0</span>
-            </div>
+            <span className="font-bold text-lg">Assistente</span>
           </div>
           <button 
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -108,24 +91,12 @@ export function Layout({ children }: { children: ReactNode }) {
           <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">
             {navItems.find(item => item.to === location.pathname)?.label || "Painel"}
           </h2>
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3 border-r border-zinc-200 dark:border-zinc-800 pr-6">
-              <div className="text-right">
-                <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100">{user?.email}</p>
-                <p className="text-[10px] text-zinc-500 dark:text-zinc-400">Plano Pro</p>
-              </div>
-              <div className="w-8 h-8 bg-zinc-200 dark:bg-zinc-800 rounded-full flex items-center justify-center text-xs font-bold text-zinc-500">
-                {user?.email?.[0].toUpperCase()}
-              </div>
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100">Usuário</p>
+              <p className="text-[10px] text-zinc-500 dark:text-zinc-400">Plano Pro</p>
             </div>
-
-            <button
-              onClick={handleSignOut}
-              className="flex items-center gap-2 text-zinc-500 hover:text-red-500 transition-colors text-sm font-medium"
-            >
-              <LogOut size={18} />
-              Sair
-            </button>
+            <div className="w-8 h-8 bg-zinc-200 dark:bg-zinc-800 rounded-full" />
           </div>
         </header>
 
@@ -174,10 +145,7 @@ export function Layout({ children }: { children: ReactNode }) {
                 <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
                   <Mic2 size={18} />
                 </div>
-                <div className="flex flex-col">
-                  <span className="font-bold text-lg leading-none">Assistente</span>
-                  <span className="text-[8px] font-bold text-indigo-500 tracking-widest">v4.0</span>
-                </div>
+                <span className="font-bold text-lg">Assistente</span>
               </div>
               <button onClick={() => setIsSidebarOpen(false)} className="p-2 text-zinc-500">
                 <X size={24} />

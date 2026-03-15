@@ -2,32 +2,29 @@ import React from 'react';
 
 interface LinkifiedTextProps {
   text: string;
-  className?: string;
 }
 
-export function LinkifiedText({ text, className }: LinkifiedTextProps) {
+export const LinkifiedText: React.FC<LinkifiedTextProps> = ({ text }) => {
   if (!text) return null;
 
-  // Regex para detectar URLs (incluindo Waze), @perfis do Instagram e números de telefone
-  const urlRegex = /(https?:\/\/[^\s]+|waze:\/\/[^\s]+)/g;
-  const instagramRegex = /(@[a-zA-Z0-9._]+)/g;
+  // Regex for URLs, Instagram handles, and Phone numbers
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const instagramRegex = /(@[a-zA-Z0-9_.]+)/g;
   const phoneRegex = /(\(?\d{2}\)?\s?\d{4,5}-?\d{4})/g;
 
-  // Split the text while keeping the separators (the matches)
   const parts = text.split(/(\s+)/);
 
   return (
-    <span className={className}>
-      {parts.map((part, i) => {
-        // Detect URLs
+    <>
+      {parts.map((part, index) => {
         if (part.match(urlRegex)) {
           return (
             <a
-              key={i}
+              key={index}
               href={part}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-indigo-600 dark:text-indigo-400 underline break-all"
+              className="text-indigo-500 hover:underline break-all"
               onClick={(e) => e.stopPropagation()}
             >
               {part}
@@ -35,16 +32,15 @@ export function LinkifiedText({ text, className }: LinkifiedTextProps) {
           );
         }
 
-        // Detect Instagram handles
         if (part.match(instagramRegex)) {
-          const username = part.trim().substring(1);
+          const username = part.substring(1);
           return (
             <a
-              key={i}
+              key={index}
               href={`https://instagram.com/${username}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-pink-600 dark:text-pink-400 font-bold underline"
+              className="text-pink-500 hover:underline font-medium"
               onClick={(e) => e.stopPropagation()}
             >
               {part}
@@ -52,14 +48,13 @@ export function LinkifiedText({ text, className }: LinkifiedTextProps) {
           );
         }
 
-        // Detect Phone Numbers
         if (part.match(phoneRegex)) {
-          const rawPhone = part.replace(/\D/g, '');
+          const digits = part.replace(/\D/g, '');
           return (
             <a
-              key={i}
-              href={`tel:${rawPhone}`}
-              className="text-emerald-600 dark:text-emerald-400 font-bold underline"
+              key={index}
+              href={`tel:${digits}`}
+              className="text-emerald-500 hover:underline font-medium"
               onClick={(e) => e.stopPropagation()}
             >
               {part}
@@ -69,6 +64,6 @@ export function LinkifiedText({ text, className }: LinkifiedTextProps) {
 
         return part;
       })}
-    </span>
+    </>
   );
-}
+};

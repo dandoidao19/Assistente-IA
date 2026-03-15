@@ -1,8 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { useEffect } from 'react';
+import { useEffect, Component, ReactNode } from 'react';
 import { useAppStore } from './store';
-import { supabase } from './lib/supabase';
 import { Layout } from './components/Layout';
 import { AssistantFAB } from './components/AssistantFAB';
 import { Home } from './pages/Home';
@@ -12,28 +11,39 @@ import { Memory } from './pages/Memory';
 import { Settings } from './pages/Settings';
 import { Login } from './pages/Login';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { ErrorBoundary } from './components/ErrorBoundary';
+import { supabase } from './lib/supabase';
+
+class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="h-screen flex flex-col items-center justify-center p-4 text-center bg-zinc-50 dark:bg-zinc-950">
+          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Ops! Algo deu errado.</h1>
+          <p className="text-zinc-500 dark:text-zinc-400 mb-6">Ocorreu um erro inesperado na interface.</p>
+          <button
+            onClick={() => window.location.href = '/'}
+            className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors"
+          >
+            Recarregar Aplicativo
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export default function App() {
   const theme = useAppStore((state) => state.settings?.theme || 'light');
-  const setUser = useAppStore((state) => state.setUser);
-  const user = useAppStore((state) => state.user);
-  const fetchData = useAppStore((state) => state.fetchData);
-
-  useEffect(() => {
-    // Escuta mudanças na autenticação
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, [setUser]);
-
-  useEffect(() => {
-    if (user) {
-      fetchData();
-    }
-  }, [user, fetchData]);
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -43,29 +53,38 @@ export default function App() {
     }
   }, [theme]);
 
+  const setUser = useAppStore((state) => state.setUser);
+  const fetchData = useAppStore((state) => state.fetchData);
+
+  useEffect(() => {
+    supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+      if (session?.user) {
+        fetchData();
+      }
+    });
+  }, [setUser, fetchData]);
+
   return (
     <ErrorBoundary>
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route
-            path="/*"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Routes>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/agenda" element={<Agenda />} />
-                    <Route path="/tasks" element={<Tasks />} />
-                    <Route path="/memory" element={<Memory />} />
-                    <Route path="/settings" element={<Settings />} />
-                    <Route path="*" element={<Home />} />
-                  </Routes>
-                </Layout>
-                <AssistantFAB />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="*" element={
+            <ProtectedRoute>
+              <Layout>
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/agenda" element={<Agenda />} />
+                  <Route path="/tasks" element={<Tasks />} />
+                  <Route path="/memory" element={<Memory />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="*" element={<Home />} />
+                </Routes>
+              </Layout>
+              <AssistantFAB />
+            </ProtectedRoute>
+          } />
         </Routes>
         <Toaster position="top-center" />
       </BrowserRouter>

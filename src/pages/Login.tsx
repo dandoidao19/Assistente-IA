@@ -2,14 +2,15 @@ import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAppStore } from '../store';
 import { useNavigate } from 'react-router-dom';
-import { Mic2, Mail, Lock, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { Loader2, Mail, Lock, UserPlus, LogIn, Mic } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
 
   const setUser = useAppStore((state) => state.setUser);
   const navigate = useNavigate();
@@ -19,14 +20,16 @@ export function Login() {
     setLoading(true);
 
     try {
-      if (isSignUp) {
-        const { error } = await supabase.auth.signUp({ email, password });
+      if (isRegistering) {
+        const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        toast.success('Conta criada! Verifique seu email.');
+        toast.success('Conta criada! Verifique seu e-mail ou faça login.');
+        setIsRegistering(false);
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         setUser(data.user);
+        toast.success('Bem-vindo de volta!');
         navigate('/');
       }
     } catch (error: any) {
@@ -38,81 +41,85 @@ export function Login() {
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-8 text-center">
-        <div className="flex flex-col items-center">
-          <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-indigo-500/20 mb-4">
-            <Mic2 size={32} />
-          </div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">Assistente IA</h1>
-            <span className="text-[10px] font-bold text-indigo-500 tracking-widest mt-2">v4.0</span>
-          </div>
-          <p className="text-zinc-500 dark:text-zinc-400 mt-2">Seu companheiro inteligente para o dia a dia</p>
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col items-center mb-8"
+      >
+        <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-xl shadow-indigo-500/20 mb-4">
+          <Mic className="text-white" size={32} />
         </div>
+        <h1 className="text-4xl font-black text-zinc-900 dark:text-white tracking-tighter">
+          Assistente IA <span className="text-indigo-600 text-sm font-bold align-top">v4.0</span>
+        </h1>
+        <p className="text-zinc-500 dark:text-zinc-400 mt-2">Seu companheiro inteligente para o dia a dia</p>
+      </motion.div>
 
-        <div className="bg-white dark:bg-zinc-900 p-8 rounded-[2rem] shadow-xl border border-zinc-100 dark:border-zinc-800 transition-colors">
-          <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-6">
-            {isSignUp ? 'Criar nova conta' : 'Entrar na sua conta'}
-          </h2>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-[2.5rem] shadow-2xl shadow-indigo-500/5 p-8 border border-zinc-100 dark:border-zinc-800"
+      >
+        <h2 className="text-2xl font-bold text-center mb-8 text-zinc-800 dark:text-zinc-200">
+          {isRegistering ? 'Criar nova conta' : 'Entrar na sua conta'}
+        </h2>
 
-          <form onSubmit={handleAuth} className="space-y-4">
-            <div className="space-y-2 text-left">
-              <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300 ml-1">E-mail</label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
-                <input
-                  type="email"
-                  required
-                  className="w-full pl-10 pr-4 py-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all dark:text-zinc-100"
-                  placeholder="seu@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
+        <form onSubmit={handleAuth} className="space-y-6">
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 ml-1">E-mail</label>
+            <div className="relative group">
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-indigo-500 transition-colors" size={20} />
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full pl-12 pr-4 py-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-zinc-900 dark:text-white"
+                placeholder="seu@email.com"
+              />
             </div>
-
-            <div className="space-y-2 text-left">
-              <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300 ml-1">Senha</label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
-                <input
-                  type="password"
-                  required
-                  minLength={6}
-                  className="w-full pl-10 pr-4 py-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all dark:text-zinc-100"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-indigo-500/20 transition-all flex items-center justify-center gap-2 mt-6 disabled:opacity-50"
-            >
-              {loading ? (
-                <Loader2 className="animate-spin" size={20} />
-              ) : (
-                <>
-                  {isSignUp ? 'Cadastrar' : 'Entrar'}
-                  <span className="text-lg">→</span>
-                </>
-              )}
-            </button>
-          </form>
-
-          <div className="mt-6 pt-6 border-t border-zinc-100 dark:border-zinc-800">
-            <button
-              onClick={() => setIsSignUp(!isSignUp)}
-              className="text-sm text-indigo-600 dark:text-indigo-400 font-medium hover:underline"
-            >
-              {isSignUp ? 'Já tem uma conta? Entre aqui' : 'Não tem uma conta? Cadastre-se'}
-            </button>
           </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 ml-1">Senha</label>
+            <div className="relative group">
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-indigo-500 transition-colors" size={20} />
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full pl-12 pr-4 py-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-zinc-900 dark:text-white"
+                placeholder="••••••••"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl shadow-lg shadow-indigo-500/30 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <Loader2 className="animate-spin" size={24} />
+            ) : (
+              <>
+                {isRegistering ? <UserPlus size={20} /> : <LogIn size={20} />}
+                <span>{isRegistering ? 'Cadastrar' : 'Entrar'} →</span>
+              </>
+            )}
+          </button>
+        </form>
+
+        <div className="mt-8 text-center">
+          <button
+            onClick={() => setIsRegistering(!isRegistering)}
+            className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:underline transition-all"
+          >
+            {isRegistering ? 'Já tem uma conta? Entre aqui' : 'Não tem uma conta? Cadastre-se'}
+          </button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
